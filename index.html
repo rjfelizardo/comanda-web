@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Comanda — Cardápio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --bg: #FBF3E7;
+    --paper: #FFFFFF;
+    --ink: #3B2416;
+    --ink-soft: #5C4331;
+    --muted: #8A7A6B;
+    --hair: #EBDFCF;
+    --accent: #C97C3D;
+    --accent-soft: #F0D9BC;
+    --ok: #6B8E5A;
+    --ok-bg: #E9F0E4;
+    --danger: #B5462F;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .brand-serif { font-family: 'Fraunces', serif; }
+
+  /* ---------- Hero / faixa da marca ---------- */
+  .hero-banner {
+    position: relative;
+    height: 108px;
+    background: linear-gradient(135deg, #B5622E 0%, var(--accent) 55%, #D98F52 100%);
+    overflow: hidden;
+  }
+  .hero-banner svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .35; }
+
+  .delivery-btn {
+    position: absolute;
+    top: 12px; left: 14px;
+    z-index: 6;
+    background: rgba(255,255,255,.92);
+    border: none;
+    border-radius: 20px;
+    padding: 8px 14px 8px 10px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--ink);
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+  }
+  .delivery-btn .pin { font-size: 13px; }
+
+  .brand-card {
+    position: relative;
+    z-index: 5;
+    margin: -46px 20px 0;
+    background: var(--paper);
+    border-radius: 18px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 10px 24px rgba(59, 36, 22, .12);
+  }
+  .logo-circle {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    flex: 0 0 auto;
+    border: 2px solid var(--paper);
+    box-shadow: 0 0 0 1px var(--hair);
+  }
+  .brand-info { flex: 1; min-width: 0; }
+  .brand-info h1 {
+    font-size: 21px; font-weight: 600; margin: 0 0 3px;
+    letter-spacing: -0.01em;
+  }
+  .meta-row {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: var(--muted);
+  }
+  .meta-row .sep { opacity: .5; }
+
+  header.top {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg);
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--hair);
+  }
+  .tagline { font-size: 12px; color: var(--muted); margin: 12px 20px 10px; }
+
+  .status-pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 20px;
+    background: var(--ok-bg);
+    color: var(--ok);
+    white-space: nowrap;
+  }
+  .status-pill.closed { background: #F5E4DE; color: var(--danger); }
+
+  .cat-bar {
+    display: flex;
+    gap: 22px;
+    overflow-x: auto;
+    padding: 0 20px 12px;
+    scrollbar-width: none;
+  }
+  .cat-bar::-webkit-scrollbar { display: none; }
+
+  .cat-chip {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+    font-weight: 700;
+    padding: 0 0 10px;
+    cursor: pointer;
+    position: relative;
+  }
+  .cat-chip.active { color: var(--ink); }
+  .cat-chip.active::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* ---------- Grid ---------- */
+  main { padding: 16px 20px 140px; max-width: 720px; margin: 0 auto; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  @media (min-width: 560px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--hair);
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-img-wrap {
+    position: relative;
+    background: var(--accent-soft);
+    border-radius: 12px;
+    height: 100px;
+    overflow: visible;
+    margin-bottom: 10px;
+  }
+  .card-img-clip {
+    width: 100%; height: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-img-clip img { width: 100%; height: 100%; object-fit: cover; }
+  .card-img-clip .emoji { font-size: 36px; }
+
+  .add-btn, .stepper {
+    position: absolute;
+    bottom: -12px; right: -6px;
+    height: 32px;
+    background: var(--ink);
+    border-radius: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  }
+  .add-btn {
+    width: 32px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 18px; font-weight: 700;
+    border: none; cursor: pointer;
+  }
+  .stepper {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 6px;
+  }
+  .stepper button {
+    width: 22px; height: 22px;
+    background: none; border: none;
+    color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer;
+  }
+  .stepper .qty { color: #fff; font-size: 12.5px; font-weight: 700; min-width: 12px; text-align: center; }
+
+  .card-name { font-size: 12.5px; font-weight: 700; min-height: 32px; line-height: 1.3; }
+  .card-portion { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .card-price { font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+
+  .empty-msg { font-size: 13px; color: var(--muted); text-align: center; margin-top: 50px; }
+
+  /* ---------- Floating cart bar ---------- */
+  .cart-bar {
+    position: fixed;
+    left: 16px; right: 16px; bottom: 16px;
+    max-width: 688px; margin: 0 auto;
+    background: var(--ink);
+    border-radius: 16px;
+    padding: 14px 18px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.3);
+    cursor: pointer;
+    z-index: 30;
+  }
+  .cart-bar.visible { display: flex; }
+  .cart-bag { font-size: 17px; flex: 0 0 auto; }
+  .cart-badge {
+    background: var(--danger);
+    border-radius: 10px;
+    min-width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 5px;
+    color: #fff; font-size: 11px; font-weight: 700;
+    margin-left: -6px;
+  }
+  .cart-bar .total { color: #fff; font-weight: 700; font-size: 13.5px; flex: 1; }
+  .cart-bar .action { color: var(--accent-soft); font-weight: 700; font-size: 13.5px; }
+
+  /* ---------- Modal / drawer ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.45);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 40;
+  }
+  .overlay.visible { display: flex; }
+  .overlay.center { align-items: center; }
+
+  .sheet {
+    background: var(--bg);
+    width: 100%; max-width: 720px;
+    border-radius: 24px 24px 0 0;
+    padding: 24px;
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+
+  .sheet h2 { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+
+  .cart-row {
+    display: flex; justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hair);
+    font-size: 13px;
+  }
+  .cart-row .name { color: var(--ink-soft); flex: 1; }
+  .cart-row .price { font-weight: 700; margin-right: 10px; }
+  .cart-row .remove-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 16px;
+    padding: 4px;
+    line-height: 1;
+  }
+  .cart-row .remove-btn:hover { color: var(--danger); }
+
+  .total-row {
+    display: flex; justify-content: space-between;
+    padding: 14px 0;
+  }
+  .total-row .label { font-weight: 700; font-size: 14px; }
+  .total-row .value { font-weight: 700; font-size: 18px; color: var(--accent); }
+
+  label.field-label {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em;
+    display: block; margin: 14px 0 6px;
+  }
+  input.field {
+    width: 100%; font-size: 14px; color: var(--ink);
+    background: var(--paper); border-radius: 12px;
+    padding: 14px; border: 1px solid var(--hair);
+  }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+  .btn {
+    flex: 1; border: none; border-radius: 14px;
+    padding: 15px; font-weight: 700; font-size: 14px;
+    cursor: pointer; text-align: center;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { background: var(--hair); color: var(--ink); flex: 0 0 auto; padding-left: 22px; padding-right: 22px; }
+  .btn:disabled { opacity: .6; cursor: default; }
+
+  /* ---------- Confirmation ---------- */
+  .confirm-box { text-align: center; }
+  .stamp {
+    width: 88px; height: 88px;
+    border: 3px solid var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    transform: rotate(-8deg);
+    color: var(--accent);
+    font-size: 30px;
+  }
+  .confirm-box h2 { margin-bottom: 4px; }
+  .confirm-code {
+    font-family: 'Fraunces', serif;
+    font-size: 32px; font-weight: 700; color: var(--accent);
+    letter-spacing: .06em; margin: 12px 0;
+  }
+  .confirm-hint { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+  .loading-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); margin-right: 4px;
+    animation: pulse 1s infinite ease-in-out;
+  }
+  @keyframes pulse { 0%,100%{opacity:.3;} 50%{opacity:1;} }
+
+  /* ---------- Modal de frete ---------- */
+  .delivery-option {
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    background: var(--paper);
+  }
+  .delivery-option .icon-circle {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex: 0 0 auto;
+  }
+  .delivery-option .opt-text { flex: 1; }
+  .delivery-option .opt-title { font-size: 13.5px; font-weight: 700; }
+  .delivery-option .opt-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  .or-divider {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--muted); font-size: 11px;
+    margin: 16px 0;
+  }
+  .or-divider::before, .or-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--hair);
+  }
+
+  .delivery-result {
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    margin-top: 14px;
+  }
+  .delivery-result .fee { font-size: 26px; font-weight: 700; color: var(--accent); font-family: 'Fraunces', serif; }
+  .delivery-result .eta { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  .delivery-result.unavailable .fee { color: var(--danger); font-size: 15px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="hero-banner">
+    <button class="delivery-btn" onclick="openDeliveryModal()">
+      <span class="pin">📍</span> Calcular taxa e tempo de entrega
+    </button>
+    <svg viewBox="0 0 400 108" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,20 Q50,5 100,20 T200,20 T300,20 T400,20" stroke="#FBF3E7" stroke-width="2.5" fill="none"/>
+      <path d="M0,45 Q50,30 100,45 T200,45 T300,45 T400,45" stroke="#FBF3E7" stroke-width="2.5" fill="none" opacity=".7"/>
+      <path d="M0,70 Q50,55 100,70 T200,70 T300,70 T400,70" stroke="#FBF3E7" stroke-width="2.5" fill="none" opacity=".45"/>
+      <path d="M0,95 Q50,80 100,95 T200,95 T300,95 T400,95" stroke="#FBF3E7" stroke-width="2.5" fill="none" opacity=".25"/>
+    </svg>
+  </div>
+  <div class="brand-card">
+    <div class="logo-circle">🥖</div>
+    <div class="brand-info">
+      <h1 class="brand-serif">Comanda</h1>
+      <div class="meta-row">
+        <span id="statusPill" class="status-pill">Aberto</span>
+        <span class="sep">•</span>
+        <span>~20 min</span>
+      </div>
+    </div>
+  </div>
+  <p class="tagline">Escolha os itens e envie seu pedido</p>
+  <div id="catBar" class="cat-bar"></div>
+</header>
+
+<main>
+  <div id="grid" class="grid"></div>
+  <p id="emptyMsg" class="empty-msg" style="display:none;">Nenhum item disponível nessa categoria.</p>
+</main>
+
+<div id="cartBar" class="cart-bar">
+  <span class="cart-bag">🛍️</span>
+  <div class="cart-badge" id="cartCount">0</div>
+  <div class="total" id="cartTotal">R$ 0,00</div>
+  <div class="action">Ver carrinho</div>
+</div>
+
+<!-- Carrinho / checkout -->
+<div id="cartOverlay" class="overlay">
+  <div class="sheet">
+    <h2>Seu pedido</h2>
+    <div id="cartItemsList"></div>
+    <div class="cart-row" id="deliveryFeeRow" style="display:none;">
+      <span class="name">Taxa de entrega</span>
+      <span class="price" id="deliveryFeeValue"></span>
+    </div>
+    <div class="total-row">
+      <span class="label">Total</span>
+      <span class="value" id="sheetTotal">R$ 0,00</span>
+    </div>
+
+    <label class="field-label">Seu nome</label>
+    <input class="field" id="nameInput" placeholder="Nome completo" />
+    <label class="field-label">WhatsApp</label>
+    <input class="field" id="phoneInput" placeholder="(87) 99999-9999" />
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeCart()">Voltar</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="submitOrder()">Confirmar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cálculo de frete -->
+<div id="deliveryOverlay" class="overlay center">
+  <div class="sheet" style="max-width: 420px; border-radius: 22px;">
+    <h2>Taxa e tempo de entrega</h2>
+
+    <div class="delivery-option" onclick="calculateByGeolocation()">
+      <div class="icon-circle">📍</div>
+      <div class="opt-text">
+        <div class="opt-title">Usar minha localização atual</div>
+        <div class="opt-sub">Ativar localização automática</div>
+      </div>
+    </div>
+
+    <div class="or-divider">ou</div>
+
+    <label class="field-label">CEP</label>
+    <input class="field" id="cepInput" placeholder="00000-000" inputmode="numeric" />
+    <div class="btn-row">
+      <button class="btn btn-primary" id="cepBtn" onclick="calculateByCEP()">Calcular</button>
+    </div>
+
+    <div id="deliveryResult" style="display:none;"></div>
+
+    <div class="btn-row" style="margin-top: 20px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeDeliveryModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmação -->
+<div id="confirmOverlay" class="overlay center">
+  <div class="sheet confirm-box" style="border-radius:24px; max-width:360px;">
+    <div class="stamp">✓</div>
+    <h2>Pedido enviado!</h2>
+    <p class="confirm-hint">Seu código de acompanhamento é:</p>
+    <div class="confirm-code" id="confirmCode">------</div>
+    <p class="confirm-hint">Você será redirecionado para o pagamento em instantes...</p>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO (mesmo Supabase e worker de pagamento do app nativo)
+// ============================================================
+const SUPABASE_URL = 'https://wtttdomogogjmozbmdie.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0dHRkb21vZ29nam1vemJtZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODc0ODksImV4cCI6MjA5OTY2MzQ4OX0.PnoH65ldp23syBkhRLoSXi1iz1ndJ0Wn7UHbm8DfdN0';
+const PAYMENTS_WORKER_URL = 'https://comanda-payments.bridgeatravessia.workers.dev';
+// Cliente (padaria) exibido nesse cardápio — troque por outro client_id para outro estabelecimento.
+const CLIENT_ID = 'b1deea70-0909-4be4-9686-5502522d2d10';
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: { schema: 'comanda' },
+});
+
+function formatBRL(n) {
+  return 'R$ ' + Number(n).toFixed(2).replace('.', ',');
+}
+
+// Estado em memória (sem localStorage neste protótipo — ver nota ao final do arquivo)
+let categories = [];
+let products = [];
+let cart = {}; // { productId: qty }
+let activeCategory = null;
+let deliveryFee = null; // null = ainda não calculado
+let deliveryEta = null;
+
+// ------------------------------------------------------------
+// Tabela de taxas de entrega por bairro (ajuste os nomes e valores
+// conforme a área de cobertura real da padaria). Nomes em minúsculo,
+// sem acento, para bater com o retorno normalizado do ViaCEP/Nominatim.
+// ------------------------------------------------------------
+const DELIVERY_FEE_TABLE = {
+  'centro': 3.00,
+  'jardim das margaridas': 5.00,
+  'boa viagem': 6.00,
+  'graças': 7.00,
+};
+const DEFAULT_ETA = '25-35 min';
+
+function normalize(str) {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .trim();
+}
+
+function lookupFee(bairro) {
+  const key = normalize(bairro);
+  if (key in DELIVERY_FEE_TABLE) return DELIVERY_FEE_TABLE[key];
+  // tenta achar por correspondência parcial (ex: "Jardim das Margaridas - Zona X")
+  const match = Object.keys(DELIVERY_FEE_TABLE).find(k => key.includes(k));
+  return match ? DELIVERY_FEE_TABLE[match] : null;
+}
+
+async function load() {
+  const catsRes = await supabaseClient.from('categories').select('*').eq('client_id', CLIENT_ID).order('sort_order');
+  const prodsRes = await supabaseClient.from('products').select('*').eq('client_id', CLIENT_ID).eq('is_available', true);
+  categories = catsRes.data || [];
+  products = prodsRes.data || [];
+  if (categories.length > 0) activeCategory = categories[0].id;
+  renderCategories();
+  renderGrid();
+}
+
+function renderCategories() {
+  const bar = document.getElementById('catBar');
+  bar.innerHTML = '';
+  categories.forEach(cat => {
+    const chip = document.createElement('button');
+    chip.className = 'cat-chip' + (cat.id === activeCategory ? ' active' : '');
+    chip.textContent = cat.name;
+    chip.onclick = () => { activeCategory = cat.id; renderCategories(); renderGrid(); };
+    bar.appendChild(chip);
+  });
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const emptyMsg = document.getElementById('emptyMsg');
+  grid.innerHTML = '';
+  const list = products.filter(p => p.category_id === activeCategory);
+
+  if (list.length === 0) {
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+
+  list.forEach(item => {
+    const qty = cart[item.id] || 0;
+    const card = document.createElement('div');
+    card.className = 'card';
+    const category = categories.find(c => c.id === item.category_id);
+    const isHortifruti = normalize(category?.name).includes('hortifruti');
+    const isMorango = normalize(item.name) === 'morango';
+    const portionText = isHortifruti && !isMorango ? '<div class="card-portion">Porção de 1kg</div>' : '';
+    card.innerHTML = `
+      <div class="card-img-wrap">
+        <div class="card-img-clip">
+          ${item.photo_url ? `<img src="${item.photo_url}" alt="${item.name}">` : `<span class="emoji">🥖</span>`}
+        </div>
+        <div class="qty-slot"></div>
+      </div>
+      <div class="card-name">${item.name}</div>
+      ${portionText}
+      <div class="card-price">${formatBRL(item.price)}</div>
+    `;
+    const slot = card.querySelector('.qty-slot');
+    renderQtyControl(slot, item.id, qty);
+    grid.appendChild(card);
+  });
+}
+
+function renderQtyControl(slot, productId, qty) {
+  if (qty === 0) {
+    slot.innerHTML = `<button class="add-btn" onclick="addToCart('${productId}')">+</button>`;
+  } else {
+    slot.innerHTML = `
+      <div class="stepper">
+        <button onclick="removeFromCart('${productId}')">-</button>
+        <span class="qty">${qty}</span>
+        <button onclick="addToCart('${productId}')">+</button>
+      </div>`;
+  }
+}
+
+function addToCart(id) {
+  cart[id] = (cart[id] || 0) + 1;
+  renderGrid();
+  updateCartBar();
+}
+function removeFromCart(id) {
+  const current = cart[id] || 0;
+  if (current <= 1) delete cart[id]; else cart[id] = current - 1;
+  renderGrid();
+  updateCartBar();
+}
+
+function cartItems() {
+  return Object.entries(cart)
+    .filter(([, qty]) => qty > 0)
+    .map(([id, qty]) => {
+      const p = products.find(x => x.id === id);
+      return p ? { ...p, quantity: qty } : null;
+    })
+    .filter(Boolean);
+}
+
+function cartTotalValue() {
+  return cartItems().reduce((sum, i) => sum + i.price * i.quantity, 0);
+}
+
+function grandTotal() {
+  return cartTotalValue() + (deliveryFee || 0);
+}
+
+function updateCartBar() {
+  const items = cartItems();
+  const count = items.reduce((s, i) => s + i.quantity, 0);
+  const bar = document.getElementById('cartBar');
+  if (count > 0) {
+    bar.classList.add('visible');
+    document.getElementById('cartCount').textContent = count;
+    document.getElementById('cartTotal').textContent = formatBRL(grandTotal());
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+document.getElementById('cartBar').onclick = () => {
+  renderCartSheet();
+  document.getElementById('cartOverlay').classList.add('visible');
+};
+
+function closeCart() {
+  document.getElementById('cartOverlay').classList.remove('visible');
+}
+
+// ------------------------------------------------------------
+// Cálculo de taxa e tempo de entrega
+// ------------------------------------------------------------
+function openDeliveryModal() {
+  document.getElementById('deliveryOverlay').classList.add('visible');
+}
+function closeDeliveryModal() {
+  document.getElementById('deliveryOverlay').classList.remove('visible');
+}
+
+function showDeliveryResult(bairro) {
+  const box = document.getElementById('deliveryResult');
+  const fee = lookupFee(bairro);
+
+  if (fee === null) {
+    box.className = 'delivery-result unavailable';
+    box.innerHTML = `
+      <div class="fee">Fora da área de entrega automática</div>
+      <div class="eta">Bairro identificado: ${bairro || 'não encontrado'}. Fale com a padaria pelo WhatsApp para confirmar se entregamos aí.</div>
+    `;
+    deliveryFee = null;
+  } else {
+    box.className = 'delivery-result';
+    box.innerHTML = `
+      <div class="fee">${formatBRL(fee)}</div>
+      <div class="eta">Tempo estimado: ${DEFAULT_ETA} · ${bairro}</div>
+    `;
+    deliveryFee = fee;
+  }
+  box.style.display = 'block';
+  updateCartBar();
+  renderCartSheet();
+}
+
+async function calculateByCEP() {
+  const cepRaw = document.getElementById('cepInput').value;
+  const cep = cepRaw.replace(/\D/g, '');
+  if (cep.length !== 8) { alert('Digite um CEP válido (8 dígitos).'); return; }
+
+  const btn = document.getElementById('cepBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-dot"></span>Calculando...';
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await res.json();
+    if (data.erro) { alert('CEP não encontrado.'); return; }
+    showDeliveryResult(data.bairro || data.localidade);
+  } catch (e) {
+    alert('Não foi possível consultar o CEP agora. Tente novamente.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Calcular';
+  }
+}
+
+function calculateByGeolocation() {
+  if (!navigator.geolocation) { alert('Seu navegador não suporta localização automática. Use o CEP.'); return; }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const { latitude, longitude } = pos.coords;
+      // Geocodificação reversa gratuita (OpenStreetMap Nominatim)
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+      const data = await res.json();
+      const bairro = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district;
+      showDeliveryResult(bairro);
+    } catch (e) {
+      alert('Não foi possível identificar seu bairro. Tente pelo CEP.');
+    }
+  }, () => {
+    alert('Não foi possível acessar sua localização. Tente pelo CEP.');
+  });
+}
+
+function renderCartSheet() {
+  const list = document.getElementById('cartItemsList');
+  list.innerHTML = '';
+  cartItems().forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'cart-row';
+    row.innerHTML = `
+      <span class="name">${item.quantity}x ${item.name}</span>
+      <span class="price">${formatBRL(item.price * item.quantity)}</span>
+      <button class="remove-btn" onclick="removeItemCompletely('${item.id}')" aria-label="Remover item" title="Remover item">🗑</button>
+    `;
+    list.appendChild(row);
+  });
+  document.getElementById('sheetTotal').textContent = formatBRL(grandTotal());
+  const feeRow = document.getElementById('deliveryFeeRow');
+  if (deliveryFee !== null) {
+    feeRow.style.display = 'flex';
+    document.getElementById('deliveryFeeValue').textContent = formatBRL(deliveryFee);
+  } else {
+    feeRow.style.display = 'none';
+  }
+}
+
+function removeItemCompletely(id) {
+  delete cart[id];
+  renderGrid();
+  updateCartBar();
+  renderCartSheet();
+  if (cartItems().length === 0) closeCart();
+}
+
+// ------------------------------------------------------------
+// Envio do pedido + pagamento
+// ------------------------------------------------------------
+async function submitOrder() {
+  const name = document.getElementById('nameInput').value.trim();
+  const phone = document.getElementById('phoneInput').value.trim();
+  const btn = document.getElementById('confirmBtn');
+
+  if (!name || !phone) { alert('Preencha seu nome e telefone para confirmar o pedido.'); return; }
+  if (cartItems().length === 0) { alert('Seu carrinho está vazio.'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-dot"></span>Enviando...';
+
+  try {
+    const { data: order, error: orderErr } = await supabaseClient
+      .from('orders')
+      .insert({ customer_name: name, customer_phone: phone, source: 'web', client_id: CLIENT_ID })
+      .select().single();
+    if (orderErr) throw orderErr;
+
+    const itemsPayload = cartItems().map(item => ({
+      order_id: order.id, product_id: item.id, product_name: item.name,
+      quantity: item.quantity, unit_price: item.price, subtotal: item.price * item.quantity,
+    }));
+    const { error: itemsErr } = await supabaseClient.from('order_items').insert(itemsPayload);
+    if (itemsErr) throw itemsErr;
+
+    // Pedido criado — agora gera a cobrança no worker (mesmo usado pelo app nativo)
+    const payRes = await fetch(`${PAYMENTS_WORKER_URL}/criar-cobranca`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: order.id,
+        amount: grandTotal(),
+        description: `Pedido Comanda #${order.tracking_code}`,
+      }),
+    });
+    const payData = await payRes.json();
+    if (!payRes.ok) throw new Error(payData.error || 'Falha ao gerar cobrança');
+
+    closeCart();
+    document.getElementById('confirmCode').textContent = order.tracking_code;
+    document.getElementById('confirmOverlay').classList.add('visible');
+    cart = {};
+    updateCartBar();
+
+    // Redireciona para o Checkout Pro (sandbox por enquanto; trocar por payData.init_point em produção)
+    setTimeout(() => {
+      window.location.href = payData.sandbox_init_point || payData.init_point;
+    }, 1400);
+  } catch (e) {
+    alert('Erro ao enviar pedido: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Confirmar pedido';
+  }
+}
+
+load();
+</script>
+
+<!--
+  NOTA DE PROTÓTIPO:
+  - Este arquivo é um protótipo funcional standalone (abre direto no navegador,
+    sem build). Ele já lê categorias/produtos reais do schema "comanda" e cria
+    pedidos de verdade, reaproveitando o mesmo worker de pagamento do app nativo.
+  - Para produção, o ideal é hospedar isso (Vercel/Netlify) com um subdomínio
+    por cliente (ex: pizzaria.comanda.app) ou um parâmetro de URL para trocar
+    o CLIENT_ID dinamicamente, em vez de fixo no código.
+  - Não usa localStorage propositalmente (nome/telefone não ficam salvos entre
+    visitas) — se for pra produção, isso é fácil de adicionar de volta.
+-->
+</body>
+</html>
