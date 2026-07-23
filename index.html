@@ -372,6 +372,31 @@
   .delivery-result .fee { font-size: 26px; font-weight: 700; color: var(--accent); font-family: 'Fraunces', serif; }
   .delivery-result .eta { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
   .delivery-result.unavailable .fee { color: var(--danger); font-size: 15px; }
+
+  /* ---------- Forma de pagamento ---------- */
+  .payment-option {
+    display: flex; align-items: center; gap: 12px;
+    border: 2px solid var(--hair);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    background: var(--paper);
+    transition: border-color .15s, background .15s;
+  }
+  .payment-option.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .payment-option .icon-circle {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex: 0 0 auto;
+  }
+  .payment-option .opt-text { flex: 1; }
+  .payment-option .opt-title { font-size: 13.5px; font-weight: 700; }
+  .payment-option .opt-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -434,6 +459,22 @@
     <label class="field-label">WhatsApp</label>
     <input class="field" id="phoneInput" placeholder="(87) 99999-9999" />
 
+    <label class="field-label">Forma de pagamento</label>
+    <div class="payment-option" id="payOnlineOption" onclick="selectPaymentMethod('online')">
+      <div class="icon-circle">💳</div>
+      <div class="opt-text">
+        <div class="opt-title">Pagar online</div>
+        <div class="opt-sub">Pix ou cartão, assim que a padaria aprovar seu pedido</div>
+      </div>
+    </div>
+    <div class="payment-option" id="payDeliveryOption" onclick="selectPaymentMethod('entrega')">
+      <div class="icon-circle">💵</div>
+      <div class="opt-text">
+        <div class="opt-title">Pagar na entrega</div>
+        <div class="opt-sub">Dinheiro ou maquininha, direto com o entregador</div>
+      </div>
+    </div>
+
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="closeCart()">Voltar</button>
       <button class="btn btn-primary" id="confirmBtn" onclick="submitOrder()">Confirmar pedido</button>
@@ -477,7 +518,7 @@
     <h2>Pedido enviado!</h2>
     <p class="confirm-hint">Seu código de acompanhamento é:</p>
     <div class="confirm-code" id="confirmCode">------</div>
-    <p class="confirm-hint">Você será redirecionado para o pagamento em instantes...</p>
+    <p class="confirm-hint">Aguarde a aprovação da padaria — você será avisado pelo WhatsApp assim que o pedido for aprovado.</p>
   </div>
 </div>
 
@@ -506,6 +547,7 @@ let cart = {}; // { productId: qty }
 let activeCategory = null;
 let deliveryFee = null; // null = ainda não calculado
 let deliveryEta = null;
+let paymentMethod = null; // 'online' ou 'entrega' — escolhido pelo cliente
 
 // ------------------------------------------------------------
 // Tabela de taxas de entrega por bairro (ajuste os nomes e valores
@@ -660,6 +702,15 @@ function closeCart() {
 }
 
 // ------------------------------------------------------------
+// Forma de pagamento
+// ------------------------------------------------------------
+function selectPaymentMethod(method) {
+  paymentMethod = method;
+  document.getElementById('payOnlineOption').classList.toggle('selected', method === 'online');
+  document.getElementById('payDeliveryOption').classList.toggle('selected', method === 'entrega');
+}
+
+// ------------------------------------------------------------
 // Cálculo de taxa e tempo de entrega
 // ------------------------------------------------------------
 function openDeliveryModal() {
@@ -764,7 +815,11 @@ function removeItemCompletely(id) {
 }
 
 // ------------------------------------------------------------
-// Envio do pedido + pagamento
+// Envio do pedido
+// (o pagamento NÃO é gerado aqui — o pedido entra como "aguardando
+// aprovação" e o worker só cria a cobrança no Mercado Pago depois que
+// o dono da padaria aprovar no painel, caso a forma escolhida seja
+// pagamento online. Se for pagamento na entrega, não há cobrança.)
 // ------------------------------------------------------------
 async function submitOrder() {
   const name = document.getElementById('nameInput').value.trim();
@@ -773,6 +828,7 @@ async function submitOrder() {
 
   if (!name || !phone) { alert('Preencha seu nome e telefone para confirmar o pedido.'); return; }
   if (cartItems().length === 0) { alert('Seu carrinho está vazio.'); return; }
+  if (!paymentMethod) { alert('Escolha a forma de pagamento para confirmar o pedido.'); return; }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="loading-dot"></span>Enviando...';
@@ -780,7 +836,13 @@ async function submitOrder() {
   try {
     const { data: order, error: orderErr } = await supabaseClient
       .from('orders')
-      .insert({ customer_name: name, customer_phone: phone, source: 'web', client_id: CLIENT_ID })
+      .insert({
+        customer_name: name,
+        customer_phone: phone,
+        source: 'web',
+        client_id: CLIENT_ID,
+        payment_method: paymentMethod,
+      })
       .select().single();
     if (orderErr) throw orderErr;
 
@@ -791,29 +853,14 @@ async function submitOrder() {
     const { error: itemsErr } = await supabaseClient.from('order_items').insert(itemsPayload);
     if (itemsErr) throw itemsErr;
 
-    // Pedido criado — agora gera a cobrança no worker (mesmo usado pelo app nativo)
-    const payRes = await fetch(`${PAYMENTS_WORKER_URL}/criar-cobranca`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order_id: order.id,
-        amount: grandTotal(),
-        description: `Pedido Comanda #${order.tracking_code}`,
-      }),
-    });
-    const payData = await payRes.json();
-    if (!payRes.ok) throw new Error(payData.error || 'Falha ao gerar cobrança');
-
     closeCart();
     document.getElementById('confirmCode').textContent = order.tracking_code;
     document.getElementById('confirmOverlay').classList.add('visible');
     cart = {};
+    paymentMethod = null;
+    document.getElementById('payOnlineOption').classList.remove('selected');
+    document.getElementById('payDeliveryOption').classList.remove('selected');
     updateCartBar();
-
-    // Redireciona para o Checkout Pro (sandbox por enquanto; trocar por payData.init_point em produção)
-    setTimeout(() => {
-      window.location.href = payData.sandbox_init_point || payData.init_point;
-    }, 1400);
   } catch (e) {
     alert('Erro ao enviar pedido: ' + e.message);
   } finally {
@@ -835,6 +882,10 @@ load();
     o CLIENT_ID dinamicamente, em vez de fixo no código.
   - Não usa localStorage propositalmente (nome/telefone não ficam salvos entre
     visitas) — se for pra produção, isso é fácil de adicionar de volta.
+  - FLUXO DE APROVAÇÃO: o pedido nasce com status "pending_approval" (padrão
+    da coluna no banco). O worker só gera a cobrança do Mercado Pago quando o
+    dono aprovar o pedido no painel E a forma escolhida for "online" — nesse
+    caso o link de pagamento é enviado por WhatsApp, não por aqui.
 -->
 </body>
 </html>
