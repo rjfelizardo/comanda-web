@@ -820,6 +820,10 @@ function removeItemCompletely(id) {
 // aprovação" e o worker só cria a cobrança no Mercado Pago depois que
 // o dono da padaria aprovar no painel, caso a forma escolhida seja
 // pagamento online. Se for pagamento na entrega, não há cobrança.)
+//
+// O insert do pedido + itens acontece dentro da função RPC
+// comanda.create_order (SECURITY DEFINER), evitando depender de
+// policy de SELECT pública em "orders" para o role anon.
 // ------------------------------------------------------------
 async function submitOrder() {
   const name = document.getElementById('nameInput').value.trim();
@@ -834,24 +838,24 @@ async function submitOrder() {
   btn.innerHTML = '<span class="loading-dot"></span>Enviando...';
 
   try {
-    const { data: order, error: orderErr } = await supabaseClient
-      .from('orders')
-      .insert({
-        customer_name: name,
-        customer_phone: phone,
-        source: 'web',
-        client_id: CLIENT_ID,
-        payment_method: paymentMethod,
-      })
-      .select().single();
-    if (orderErr) throw orderErr;
-
     const itemsPayload = cartItems().map(item => ({
-      order_id: order.id, product_id: item.id, product_name: item.name,
-      quantity: item.quantity, unit_price: item.price, subtotal: item.price * item.quantity,
+      product_id: item.id,
+      product_name: item.name,
+      quantity: item.quantity,
+      unit_price: item.price,
+      subtotal: item.price * item.quantity,
     }));
-    const { error: itemsErr } = await supabaseClient.from('order_items').insert(itemsPayload);
-    if (itemsErr) throw itemsErr;
+
+    const { data, error } = await supabaseClient.rpc('create_order', {
+      p_client_id: CLIENT_ID,
+      p_customer_name: name,
+      p_customer_phone: phone,
+      p_payment_method: paymentMethod,
+      p_source: 'web',
+      p_items: itemsPayload,
+    });
+    if (error) throw error;
+    const order = data[0];
 
     closeCart();
     document.getElementById('confirmCode').textContent = order.tracking_code;
@@ -886,6 +890,8 @@ load();
     da coluna no banco). O worker só gera a cobrança do Mercado Pago quando o
     dono aprovar o pedido no painel E a forma escolhida for "online" — nesse
     caso o link de pagamento é enviado por WhatsApp, não por aqui.
+  - O insert do pedido acontece via RPC comanda.create_order (SECURITY DEFINER),
+    não mais via .insert() direto nas tabelas orders/order_items pelo client anon.
 -->
 </body>
 </html>
