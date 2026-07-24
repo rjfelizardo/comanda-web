@@ -289,6 +289,7 @@ async function loadOrders() {
       'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
     return true;
   } catch (e) {
+    alert('DIAGNÓSTICO: ' + e.message); // TEMPORÁRIO — remover depois de resolver o erro
     document.getElementById('ordersContainer').innerHTML =
       '<p class="empty-msg">Erro ao carregar pedidos. Tente atualizar novamente.</p>';
     return true; // já estava logado, é erro de rede, não de senha
