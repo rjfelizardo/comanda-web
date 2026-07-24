@@ -278,9 +278,9 @@ async function loadOrders() {
   btn.disabled = true;
   try {
     const statusParam = ACTIVE_STATUSES.join(',');
+    const senha = encodeURIComponent(localStorage.getItem(AUTH_STORAGE_KEY) || '');
     const res = await fetch(
-      `${WORKER_URL}/pedidos?client_id=${CLIENT_ID}&status=${encodeURIComponent(statusParam)}`,
-      { headers: getAuthHeader() }
+      `${WORKER_URL}/pedidos?client_id=${CLIENT_ID}&status=${encodeURIComponent(statusParam)}&admin_password=${senha}`
     );
     if (res.status === 401) return false;
     const data = await res.json();
@@ -289,14 +289,6 @@ async function loadOrders() {
       'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
     return true;
   } catch (e) {
-    let semAuthResultado = 'não testado';
-    try {
-      const testRes = await fetch(`${WORKER_URL}/pedidos?client_id=${CLIENT_ID}`);
-      semAuthResultado = 'OK, status ' + testRes.status;
-    } catch (e2) {
-      semAuthResultado = 'TAMBÉM FALHOU: ' + e2.message;
-    }
-    alert('DIAGNÓSTICO: ' + e.message + '\n\nTeste sem header de senha: ' + semAuthResultado); // TEMPORÁRIO — remover depois de resolver o erro
     document.getElementById('ordersContainer').innerHTML =
       '<p class="empty-msg">Erro ao carregar pedidos. Tente atualizar novamente.</p>';
     return true; // já estava logado, é erro de rede, não de senha
@@ -373,9 +365,9 @@ function renderOrders(orders) {
 
 async function updateStatus(orderId, newStatus) {
   try {
-    const res = await fetch(`${WORKER_URL}/pedidos/${orderId}`, {
-      method: 'PATCH',
-      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+    const senha = encodeURIComponent(localStorage.getItem(AUTH_STORAGE_KEY) || '');
+    const res = await fetch(`${WORKER_URL}/pedidos/${orderId}/atualizar?admin_password=${senha}`, {
+      method: 'POST',
       body: JSON.stringify({ status: newStatus }),
     });
     if (!res.ok) {
