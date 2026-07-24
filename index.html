@@ -58,6 +58,32 @@
   }
   .delivery-btn .pin { font-size: 13px; }
 
+  .cart-icon-btn {
+    position: absolute;
+    top: 12px; right: 14px;
+    z-index: 6;
+    background: rgba(255,255,255,.92);
+    border: none;
+    border-radius: 50%;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+  }
+  .cart-icon-btn .pin { font-size: 15px; }
+  .cart-icon-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px; font-weight: 700;
+    min-width: 17px; height: 17px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 0 0 2px var(--paper);
+  }
+
   .brand-card {
     position: relative;
     z-index: 5;
@@ -406,6 +432,10 @@
     <button class="delivery-btn" onclick="openDeliveryModal()">
       <span class="pin">📍</span> Calcular taxa e tempo de entrega
     </button>
+    <button class="cart-icon-btn" onclick="renderCartSheet(); document.getElementById('cartOverlay').classList.add('visible');">
+      <span class="pin">🛍️</span>
+      <span class="cart-icon-badge" id="cartIconBadge" style="display:none;">0</span>
+    </button>
     <svg viewBox="0 0 400 108" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M0,20 Q50,5 100,20 T200,20 T300,20 T400,20" stroke="#FBF3E7" stroke-width="2.5" fill="none"/>
       <path d="M0,45 Q50,30 100,45 T200,45 T300,45 T400,45" stroke="#FBF3E7" stroke-width="2.5" fill="none" opacity=".7"/>
@@ -444,6 +474,7 @@
 <div id="cartOverlay" class="overlay">
   <div class="sheet">
     <h2>Seu pedido</h2>
+    <button class="btn-ghost" style="font-size:12px; padding:6px 12px; border-radius:10px; margin-bottom:10px;" onclick="esvaziarCarrinho()">🗑 Esvaziar carrinho</button>
     <div id="cartItemsList"></div>
     <div class="cart-row" id="deliveryFeeRow" style="display:none;">
       <span class="name">Taxa de entrega</span>
@@ -727,12 +758,16 @@ function updateCartBar() {
   const items = cartItems();
   const count = items.reduce((s, i) => s + i.quantity, 0);
   const bar = document.getElementById('cartBar');
+  const badge = document.getElementById('cartIconBadge');
   if (count > 0) {
     bar.classList.add('visible');
     document.getElementById('cartCount').textContent = count;
     document.getElementById('cartTotal').textContent = formatBRL(grandTotal());
+    badge.style.display = 'flex';
+    badge.textContent = count;
   } else {
     bar.classList.remove('visible');
+    badge.style.display = 'none';
   }
 }
 
@@ -863,6 +898,20 @@ function removeItemCompletely(id) {
   if (cartItems().length === 0) closeCart();
 }
 
+function esvaziarCarrinho() {
+  if (cartItems().length === 0) return;
+  if (!confirm('Tem certeza que deseja esvaziar o carrinho? Todos os itens serão removidos.')) return;
+  cart = {};
+  paymentMethod = null;
+  document.getElementById('payOnlineOption').classList.remove('selected');
+  document.getElementById('payDeliveryOption').classList.remove('selected');
+  renderGrid();
+  updateCartBar();
+  renderCartSheet();
+  saveCartToStorage();
+  closeCart();
+}
+
 // ------------------------------------------------------------
 // Envio do pedido
 // (o pagamento NÃO é gerado aqui — o pedido entra como "aguardando
@@ -913,6 +962,7 @@ async function submitOrder() {
     paymentMethod = null;
     document.getElementById('payOnlineOption').classList.remove('selected');
     document.getElementById('payDeliveryOption').classList.remove('selected');
+    renderGrid();
     updateCartBar();
     clearCartStorage();
   } catch (e) {
