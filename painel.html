@@ -46,7 +46,19 @@
     background: var(--accent); color: #fff; border: none;
     border-radius: 10px; padding: 9px 14px;
     font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
   }
+  .refresh-btn:disabled { opacity: .75; cursor: default; }
+  .spinner {
+    width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    display: none;
+    animation: spin .7s linear infinite;
+  }
+  .refresh-btn.loading .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   main { padding: 16px; max-width: 720px; margin: 0 auto; }
   @media (min-width: 900px) { main { max-width: 1000px; } }
@@ -161,7 +173,10 @@
       <h1 class="brand-serif">Pedidos</h1>
       <div class="sub" id="lastUpdated">Carregando…</div>
     </div>
-    <button class="refresh-btn" onclick="loadOrders()">Atualizar</button>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadOrders()">
+      <span class="spinner"></span>
+      <span>Atualizar</span>
+    </button>
   </header>
   <main>
     <div id="ordersContainer"></div>
@@ -258,6 +273,9 @@ async function init() {
 }
 
 async function loadOrders() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
   try {
     const statusParam = ACTIVE_STATUSES.join(',');
     const res = await fetch(
@@ -274,6 +292,9 @@ async function loadOrders() {
     document.getElementById('ordersContainer').innerHTML =
       '<p class="empty-msg">Erro ao carregar pedidos. Tente atualizar novamente.</p>';
     return true; // já estava logado, é erro de rede, não de senha
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
   }
 }
 
