@@ -52,34 +52,32 @@
   .hero-banner svg { display: none; }
 
   .top-actions {
-    position: absolute;
-    top: 12px; left: 14px;
-    z-index: 6;
     display: flex;
     align-items: center;
     gap: 8px;
+    margin: 14px 20px 4px;
   }
   .delivery-btn {
-    background: rgba(255,255,255,.92);
-    border: none;
+    background: var(--paper);
+    border: 1px solid var(--hair);
     border-radius: 20px;
     padding: 8px 14px 8px 10px;
     display: flex; align-items: center; gap: 6px;
     font-size: 12px; font-weight: 600; color: var(--ink);
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+    box-shadow: 0 2px 6px rgba(59,36,22,.06);
   }
   .delivery-btn .pin { font-size: 13px; }
 
   .cart-icon-btn {
     position: relative;
-    background: rgba(255,255,255,.92);
-    border: none;
+    background: var(--paper);
+    border: 1px solid var(--hair);
     border-radius: 50%;
     width: 36px; height: 36px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+    box-shadow: 0 2px 6px rgba(59,36,22,.06);
     flex: 0 0 auto;
   }
   .cart-icon-btn .pin { font-size: 15px; }
@@ -450,15 +448,6 @@
 
 <header class="top">
   <div class="hero-banner">
-    <div class="top-actions">
-      <button class="delivery-btn" onclick="openDeliveryModal()">
-        <span class="pin">📍</span> Calcular taxa e tempo de entrega
-      </button>
-      <button class="cart-icon-btn" onclick="renderCartSheet(); document.getElementById('cartOverlay').classList.add('visible');">
-        <span class="pin">🛒</span>
-        <span class="cart-icon-badge" id="cartIconBadge" style="display:none;">0</span>
-      </button>
-    </div>
     <svg viewBox="0 0 400 108" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M0,20 Q50,5 100,20 T200,20 T300,20 T400,20" stroke="#FBF3E7" stroke-width="2.5" fill="none"/>
       <path d="M0,45 Q50,30 100,45 T200,45 T300,45 T400,45" stroke="#FBF3E7" stroke-width="2.5" fill="none" opacity=".7"/>
@@ -472,10 +461,17 @@
       <h1 class="brand-serif">Comanda</h1>
       <div class="meta-row">
         <span id="statusPill" class="status-pill">Aberto</span>
-        <span class="sep">•</span>
-        <span>~20 min</span>
       </div>
     </div>
+  </div>
+  <div class="top-actions">
+    <button class="delivery-btn" onclick="openDeliveryModal()">
+      <span class="pin">📍</span> Calcular taxa e tempo de entrega
+    </button>
+    <button class="cart-icon-btn" onclick="renderCartSheet(); document.getElementById('cartOverlay').classList.add('visible');">
+      <span class="pin">🛒</span>
+      <span class="cart-icon-badge" id="cartIconBadge" style="display:none;">0</span>
+    </button>
   </div>
   <p class="tagline">Escolha os itens e envie seu pedido</p>
   <div id="catBar" class="cat-bar"></div>
@@ -671,6 +667,20 @@ function lookupFee(bairro) {
   return match ? DELIVERY_FEE_TABLE[match] : null;
 }
 
+// ------------------------------------------------------------
+// Status Aberto/Fechado — abre às 7h, fecha às 19h.
+// ------------------------------------------------------------
+const OPENING_HOUR = 7;  // 7h = 07:00
+const CLOSING_HOUR = 19; // 19h = 19:00
+
+function updateStatusPill() {
+  const pill = document.getElementById('statusPill');
+  const hour = new Date().getHours();
+  const isOpen = hour >= OPENING_HOUR && hour < CLOSING_HOUR;
+  pill.textContent = isOpen ? 'Aberto' : 'Fechado';
+  pill.classList.toggle('closed', !isOpen);
+}
+
 async function load() {
   const catsRes = await supabaseClient.from('categories').select('*').eq('client_id', CLIENT_ID).order('sort_order');
   const prodsRes = await supabaseClient.from('products').select('*').eq('client_id', CLIENT_ID).eq('is_available', true);
@@ -681,6 +691,7 @@ async function load() {
   renderCategories();
   renderGrid();
   updateCartBar();
+  updateStatusPill();
 }
 
 function renderCategories() {
