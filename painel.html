@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Comanda — Painel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FBF3E7;
+    --paper: #FFFFFF;
+    --ink: #3B2416;
+    --ink-soft: #5C4331;
+    --muted: #8A7A6B;
+    --hair: #EBDFCF;
+    --accent: #C97C3D;
+    --accent-soft: #F0D9BC;
+    --ok: #6B8E5A;
+    --ok-bg: #E9F0E4;
+    --danger: #B5462F;
+    --danger-bg: #F5E4DE;
+    --warn: #B9862F;
+    --warn-bg: #F4EAD8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .brand-serif { font-family: 'Fraunces', serif; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--paper);
+    border-bottom: 1px solid var(--hair);
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { font-size: 19px; margin: 0; }
+  header .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .refresh-btn {
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 10px; padding: 9px 14px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+
+  main { padding: 16px; max-width: 720px; margin: 0 auto; }
+  @media (min-width: 900px) { main { max-width: 1000px; } }
+
+  .empty-msg { text-align: center; color: var(--muted); font-size: 14px; margin-top: 60px; }
+
+  .cards-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 700px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1100px) { .cards-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--hair);
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .card-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .card-code {
+    font-family: 'Fraunces', serif;
+    font-size: 15px; font-weight: 700; color: var(--accent);
+  }
+  .status-badge {
+    font-size: 10.5px; font-weight: 700;
+    padding: 3px 9px; border-radius: 20px;
+    background: var(--warn-bg); color: var(--warn);
+    white-space: nowrap;
+  }
+  .status-badge.approval { background: var(--warn-bg); color: var(--warn); }
+  .status-badge.progress { background: var(--ok-bg); color: var(--ok); }
+  .status-badge.waiting  { background: var(--accent-soft); color: var(--accent); }
+
+  .customer-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  .customer-phone { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+
+  .items-list { border-top: 1px solid var(--hair); padding-top: 8px; margin-bottom: 8px; }
+  .item-row {
+    display: flex; justify-content: space-between;
+    font-size: 12.5px; color: var(--ink-soft);
+    padding: 2px 0;
+  }
+  .item-row .qty { color: var(--muted); margin-right: 4px; }
+
+  .total-row {
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--hair);
+    padding-top: 8px; margin-bottom: 12px;
+  }
+  .total-row .label { font-size: 12.5px; color: var(--muted); }
+  .total-row .value { font-size: 16px; font-weight: 700; color: var(--accent); }
+  .payment-tag { font-size: 11px; color: var(--muted); }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    flex: 1; border: none; border-radius: 10px;
+    padding: 10px; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; text-align: center; min-width: 90px;
+  }
+  .btn-approve { background: var(--ok); color: #fff; }
+  .btn-reject { background: var(--danger-bg); color: var(--danger); }
+  .btn-advance { background: var(--accent); color: #fff; }
+  .btn-cancel { background: var(--hair); color: var(--ink-soft); }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* Login simples de senha */
+  .login-box {
+    max-width: 340px; margin: 100px auto; background: var(--paper);
+    border-radius: 16px; padding: 24px; text-align: center;
+    box-shadow: 0 10px 24px rgba(59,36,22,.12);
+  }
+  .login-box h2 { font-size: 17px; margin: 0 0 14px; }
+  .login-box input {
+    width: 100%; font-size: 14px; padding: 12px;
+    border-radius: 10px; border: 1px solid var(--hair);
+    margin-bottom: 12px;
+  }
+  .login-box button {
+    width: 100%; background: var(--accent); color: #fff;
+    border: none; border-radius: 10px; padding: 12px;
+    font-weight: 700; cursor: pointer;
+  }
+  .login-error { color: var(--danger); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div id="loginOverlay" class="login-box" style="display:none;">
+  <h2 class="brand-serif">Painel Comanda</h2>
+  <input type="password" id="passwordInput" placeholder="Senha de acesso" />
+  <button onclick="tryLogin()">Entrar</button>
+  <div id="loginError" class="login-error" style="display:none;">Senha incorreta.</div>
+</div>
+
+<div id="appRoot" style="display:none;">
+  <header>
+    <div>
+      <h1 class="brand-serif">Pedidos</h1>
+      <div class="sub" id="lastUpdated">Carregando…</div>
+    </div>
+    <button class="refresh-btn" onclick="loadOrders()">Atualizar</button>
+  </header>
+  <main>
+    <div id="ordersContainer"></div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO
+// ============================================================
+const WORKER_URL = 'https://comanda-payments.bridgeatravessia.workers.dev';
+const CLIENT_ID = 'b1deea70-0909-4be4-9686-5502522d2d10';
+const AUTH_STORAGE_KEY = 'comanda_painel_senha';
+
+// Status que ainda aparecem no painel (não mostra concluídos/cancelados)
+const ACTIVE_STATUSES = [
+  'pending_approval', 'approved', 'awaiting_payment', 'paid',
+  'in_preparation', 'ready', 'out_for_delivery'
+];
+
+const STATUS_LABELS = {
+  pending_approval: 'Aguardando aprovação',
+  approved: 'Aprovado',
+  rejected: 'Rejeitado',
+  awaiting_payment: 'Aguardando pagamento',
+  paid: 'Pago',
+  in_preparation: 'Em preparo',
+  ready: 'Pronto',
+  out_for_delivery: 'Em rota de entrega',
+  delivered: 'Entregue',
+  cancelled: 'Cancelado',
+};
+
+// Próximo status "natural" ao clicar no botão principal de avançar
+const NEXT_STATUS = {
+  approved: 'in_preparation',
+  awaiting_payment: 'in_preparation', // uso manual, caso pagamento na entrega/exceção
+  paid: 'in_preparation',
+  in_preparation: 'ready',
+  ready: 'out_for_delivery',
+  out_for_delivery: 'delivered',
+};
+
+const NEXT_LABEL = {
+  approved: 'Iniciar preparo',
+  awaiting_payment: 'Iniciar preparo',
+  paid: 'Iniciar preparo',
+  in_preparation: 'Marcar como pronto',
+  ready: 'Saiu para entrega',
+  out_for_delivery: 'Marcar como entregue',
+};
+
+function formatBRL(n) {
+  return 'R$ ' + Number(n).toFixed(2).replace('.', ',');
+}
+
+function getAuthHeader() {
+  return { Authorization: 'Bearer ' + localStorage.getItem(AUTH_STORAGE_KEY) };
+}
+
+function tryLogin() {
+  const pass = document.getElementById('passwordInput').value.trim();
+  if (!pass) return;
+  localStorage.setItem(AUTH_STORAGE_KEY, pass);
+  document.getElementById('loginError').style.display = 'none';
+  init();
+}
+
+async function init() {
+  const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!saved) {
+    document.getElementById('loginOverlay').style.display = 'block';
+    document.getElementById('appRoot').style.display = 'none';
+    return;
+  }
+  const ok = await loadOrders();
+  if (ok) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('appRoot').style.display = 'block';
+  } else {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    document.getElementById('loginOverlay').style.display = 'block';
+    document.getElementById('appRoot').style.display = 'none';
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+async function loadOrders() {
+  try {
+    const statusParam = ACTIVE_STATUSES.join(',');
+    const res = await fetch(
+      `${WORKER_URL}/pedidos?client_id=${CLIENT_ID}&status=${encodeURIComponent(statusParam)}`,
+      { headers: getAuthHeader() }
+    );
+    if (res.status === 401) return false;
+    const data = await res.json();
+    renderOrders(data.orders || []);
+    document.getElementById('lastUpdated').textContent =
+      'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+    return true;
+  } catch (e) {
+    document.getElementById('ordersContainer').innerHTML =
+      '<p class="empty-msg">Erro ao carregar pedidos. Tente atualizar novamente.</p>';
+    return true; // já estava logado, é erro de rede, não de senha
+  }
+}
+
+function statusBadgeClass(status) {
+  if (status === 'pending_approval') return 'approval';
+  if (status === 'awaiting_payment') return 'waiting';
+  return 'progress';
+}
+
+function renderOrders(orders) {
+  const container = document.getElementById('ordersContainer');
+  if (orders.length === 0) {
+    container.innerHTML = '<p class="empty-msg">Nenhum pedido ativo no momento.</p>';
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'cards-grid';
+
+  orders.forEach(order => {
+    const total = (order.order_items || []).reduce((s, i) => s + Number(i.subtotal), 0);
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const itemsHtml = (order.order_items || []).map(i => `
+      <div class="item-row">
+        <span><span class="qty">${i.quantity}x</span>${i.product_name}</span>
+        <span>${formatBRL(i.subtotal)}</span>
+      </div>
+    `).join('');
+
+    let actionsHtml = '';
+    if (order.status === 'pending_approval') {
+      actionsHtml = `
+        <button class="btn btn-approve" onclick="updateStatus('${order.id}', 'approved')">Aprovar</button>
+        <button class="btn btn-reject" onclick="updateStatus('${order.id}', 'rejected')">Rejeitar</button>
+      `;
+    } else if (NEXT_STATUS[order.status]) {
+      actionsHtml = `
+        <button class="btn btn-advance" onclick="updateStatus('${order.id}', '${NEXT_STATUS[order.status]}')">${NEXT_LABEL[order.status]}</button>
+        <button class="btn btn-cancel" onclick="updateStatus('${order.id}', 'cancelled')">Cancelar</button>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="card-top">
+        <span class="card-code">#${order.tracking_code}</span>
+        <span class="status-badge ${statusBadgeClass(order.status)}">${STATUS_LABELS[order.status] || order.status}</span>
+      </div>
+      <div class="customer-name">${order.customer_name}</div>
+      <div class="customer-phone">📱 ${order.customer_phone}</div>
+      <div class="items-list">${itemsHtml}</div>
+      <div class="total-row">
+        <div>
+          <div class="label">Total</div>
+          <div class="payment-tag">${order.payment_method === 'online' ? '💳 Pagar online' : '💵 Pagar na entrega'}</div>
+        </div>
+        <div class="value">${formatBRL(total)}</div>
+      </div>
+      <div class="actions">${actionsHtml}</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(grid);
+}
+
+async function updateStatus(orderId, newStatus) {
+  try {
+    const res = await fetch(`${WORKER_URL}/pedidos/${orderId}`, {
+      method: 'PATCH',
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) {
+      alert('Não foi possível atualizar o pedido. Tente novamente.');
+      return;
+    }
+    loadOrders();
+  } catch (e) {
+    alert('Erro de conexão ao atualizar o pedido.');
+  }
+}
+
+// Atualiza sozinho a cada 30 segundos
+setInterval(() => {
+  if (localStorage.getItem(AUTH_STORAGE_KEY)) loadOrders();
+}, 30000);
+
+init();
+</script>
+
+<!--
+  NOTA:
+  - O painel exige a senha (ADMIN_PASSWORD do worker) porque a própria API
+    do worker (/pedidos) já exige Authorization: Bearer <senha> — isso não
+    é um login "de verdade" com usuário/conta, só o campo mínimo necessário
+    pra falar com a API. A senha fica salva no localStorage do navegador
+    depois da primeira vez, sem precisar digitar de novo.
+  - Falta ainda: aba de "Gerenciar Produtos" (preço/disponibilidade) — depende
+    de novas rotas GET/PATCH /produtos no worker, que ainda não existem.
+-->
+</body>
+</html>
