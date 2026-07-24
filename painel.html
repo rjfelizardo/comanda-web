@@ -124,10 +124,16 @@
     box-shadow: 0 10px 24px rgba(59,36,22,.12);
   }
   .login-box h2 { font-size: 17px; margin: 0 0 14px; }
+  .password-wrap { position: relative; margin-bottom: 12px; }
   .login-box input {
-    width: 100%; font-size: 14px; padding: 12px;
+    width: 100%; font-size: 14px; padding: 12px 42px 12px 12px;
     border-radius: 10px; border: 1px solid var(--hair);
-    margin-bottom: 12px;
+  }
+  .toggle-eye {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    font-size: 17px; padding: 8px; line-height: 1;
+    color: var(--muted);
   }
   .login-box button {
     width: 100%; background: var(--accent); color: #fff;
@@ -141,7 +147,10 @@
 
 <div id="loginOverlay" class="login-box" style="display:none;">
   <h2 class="brand-serif">Painel Comanda</h2>
-  <input type="password" id="passwordInput" placeholder="Senha de acesso" />
+  <div class="password-wrap">
+    <input type="password" id="passwordInput" placeholder="Senha de acesso" />
+    <button type="button" class="toggle-eye" onclick="togglePasswordVisibility()" aria-label="Mostrar senha">👁</button>
+  </div>
   <button onclick="tryLogin()">Entrar</button>
   <div id="loginError" class="login-error" style="display:none;">Senha incorreta.</div>
 </div>
@@ -211,6 +220,14 @@ function formatBRL(n) {
 
 function getAuthHeader() {
   return { Authorization: 'Bearer ' + localStorage.getItem(AUTH_STORAGE_KEY) };
+}
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('passwordInput');
+  const btn = document.querySelector('.toggle-eye');
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.textContent = showing ? '👁' : '🙈';
 }
 
 function tryLogin() {
