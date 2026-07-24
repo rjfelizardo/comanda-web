@@ -289,7 +289,14 @@ async function loadOrders() {
       'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
     return true;
   } catch (e) {
-    alert('DIAGNÓSTICO: ' + e.message); // TEMPORÁRIO — remover depois de resolver o erro
+    let semAuthResultado = 'não testado';
+    try {
+      const testRes = await fetch(`${WORKER_URL}/pedidos?client_id=${CLIENT_ID}`);
+      semAuthResultado = 'OK, status ' + testRes.status;
+    } catch (e2) {
+      semAuthResultado = 'TAMBÉM FALHOU: ' + e2.message;
+    }
+    alert('DIAGNÓSTICO: ' + e.message + '\n\nTeste sem header de senha: ' + semAuthResultado); // TEMPORÁRIO — remover depois de resolver o erro
     document.getElementById('ordersContainer').innerHTML =
       '<p class="empty-msg">Erro ao carregar pedidos. Tente atualizar novamente.</p>';
     return true; // já estava logado, é erro de rede, não de senha
