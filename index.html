@@ -43,10 +43,15 @@
   }
   .hero-banner svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .35; }
 
-  .delivery-btn {
+  .top-actions {
     position: absolute;
     top: 12px; left: 14px;
     z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .delivery-btn {
     background: rgba(255,255,255,.92);
     border: none;
     border-radius: 20px;
@@ -59,9 +64,7 @@
   .delivery-btn .pin { font-size: 13px; }
 
   .cart-icon-btn {
-    position: absolute;
-    top: 12px; right: 14px;
-    z-index: 6;
+    position: relative;
     background: rgba(255,255,255,.92);
     border: none;
     border-radius: 50%;
@@ -69,6 +72,7 @@
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(0,0,0,.15);
+    flex: 0 0 auto;
   }
   .cart-icon-btn .pin { font-size: 15px; }
   .cart-icon-badge {
@@ -429,13 +433,15 @@
 
 <header class="top">
   <div class="hero-banner">
-    <button class="delivery-btn" onclick="openDeliveryModal()">
-      <span class="pin">📍</span> Calcular taxa e tempo de entrega
-    </button>
-    <button class="cart-icon-btn" onclick="renderCartSheet(); document.getElementById('cartOverlay').classList.add('visible');">
-      <span class="pin">🛍️</span>
-      <span class="cart-icon-badge" id="cartIconBadge" style="display:none;">0</span>
-    </button>
+    <div class="top-actions">
+      <button class="delivery-btn" onclick="openDeliveryModal()">
+        <span class="pin">📍</span> Calcular taxa e tempo de entrega
+      </button>
+      <button class="cart-icon-btn" onclick="renderCartSheet(); document.getElementById('cartOverlay').classList.add('visible');">
+        <span class="pin">🛒</span>
+        <span class="cart-icon-badge" id="cartIconBadge" style="display:none;">0</span>
+      </button>
+    </div>
     <svg viewBox="0 0 400 108" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M0,20 Q50,5 100,20 T200,20 T300,20 T400,20" stroke="#FBF3E7" stroke-width="2.5" fill="none"/>
       <path d="M0,45 Q50,30 100,45 T200,45 T300,45 T400,45" stroke="#FBF3E7" stroke-width="2.5" fill="none" opacity=".7"/>
