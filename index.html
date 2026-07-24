@@ -414,7 +414,7 @@
     </svg>
   </div>
   <div class="brand-card">
-    <div class="logo-circle"><img src="https://wtttdomogogjmozbmdie.supabase.co/storage/v1/object/public/comanda-products/icon.png" alt="Comanda" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div>
+    <div class="logo-circle">🥖</div>
     <div class="brand-info">
       <h1 class="brand-serif">Comanda</h1>
       <div class="meta-row">
@@ -519,6 +519,7 @@
     <p class="confirm-hint">Seu código de acompanhamento é:</p>
     <div class="confirm-code" id="confirmCode">------</div>
     <p class="confirm-hint">Aguarde a aprovação da padaria — você será avisado pelo WhatsApp assim que o pedido for aprovado.</p>
+    <button class="btn btn-primary" style="margin-top: 18px;" onclick="document.getElementById('confirmOverlay').classList.remove('visible')">Fazer novo pedido</button>
   </div>
 </div>
 
@@ -540,7 +541,8 @@ function formatBRL(n) {
   return 'R$ ' + Number(n).toFixed(2).replace('.', ',');
 }
 
-// Estado em memória (sem localStorage neste protótipo — ver nota ao final do arquivo)
+// Estado em memória, com persistência em localStorage pra não perder o
+// carrinho se o cliente sair do site antes de confirmar o pedido.
 let categories = [];
 let products = [];
 let cart = {}; // { productId: qty }
@@ -548,6 +550,44 @@ let activeCategory = null;
 let deliveryFee = null; // null = ainda não calculado
 let deliveryEta = null;
 let paymentMethod = null; // 'online' ou 'entrega' — escolhido pelo cliente
+
+const CART_STORAGE_KEY = 'comanda_carrinho_' + CLIENT_ID;
+
+function saveCartToStorage() {
+  try {
+    const nome = document.getElementById('nameInput')?.value || '';
+    const telefone = document.getElementById('phoneInput')?.value || '';
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ cart, paymentMethod, nome, telefone }));
+  } catch (e) {
+    // localStorage indisponível (modo anônimo, etc.) — segue sem persistir
+  }
+}
+
+function loadCartFromStorage() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    cart = saved.cart || {};
+    paymentMethod = saved.paymentMethod || null;
+    if (saved.nome) document.getElementById('nameInput').value = saved.nome;
+    if (saved.telefone) document.getElementById('phoneInput').value = saved.telefone;
+    if (paymentMethod) {
+      document.getElementById('payOnlineOption').classList.toggle('selected', paymentMethod === 'online');
+      document.getElementById('payDeliveryOption').classList.toggle('selected', paymentMethod === 'entrega');
+    }
+  } catch (e) {
+    // ignora se não conseguir ler
+  }
+}
+
+function clearCartStorage() {
+  try {
+    localStorage.removeItem(CART_STORAGE_KEY);
+  } catch (e) {
+    // ignora
+  }
+}
 
 // ------------------------------------------------------------
 // Tabela de taxas de entrega por bairro (ajuste os nomes e valores
@@ -583,8 +623,10 @@ async function load() {
   categories = catsRes.data || [];
   products = prodsRes.data || [];
   if (categories.length > 0) activeCategory = categories[0].id;
+  loadCartFromStorage();
   renderCategories();
   renderGrid();
+  updateCartBar();
 }
 
 function renderCategories() {
@@ -653,12 +695,14 @@ function addToCart(id) {
   cart[id] = (cart[id] || 0) + 1;
   renderGrid();
   updateCartBar();
+  saveCartToStorage();
 }
 function removeFromCart(id) {
   const current = cart[id] || 0;
   if (current <= 1) delete cart[id]; else cart[id] = current - 1;
   renderGrid();
   updateCartBar();
+  saveCartToStorage();
 }
 
 function cartItems() {
@@ -697,6 +741,9 @@ document.getElementById('cartBar').onclick = () => {
   document.getElementById('cartOverlay').classList.add('visible');
 };
 
+document.getElementById('nameInput').addEventListener('input', saveCartToStorage);
+document.getElementById('phoneInput').addEventListener('input', saveCartToStorage);
+
 function closeCart() {
   document.getElementById('cartOverlay').classList.remove('visible');
 }
@@ -708,6 +755,7 @@ function selectPaymentMethod(method) {
   paymentMethod = method;
   document.getElementById('payOnlineOption').classList.toggle('selected', method === 'online');
   document.getElementById('payDeliveryOption').classList.toggle('selected', method === 'entrega');
+  saveCartToStorage();
 }
 
 // ------------------------------------------------------------
@@ -811,6 +859,7 @@ function removeItemCompletely(id) {
   renderGrid();
   updateCartBar();
   renderCartSheet();
+  saveCartToStorage();
   if (cartItems().length === 0) closeCart();
 }
 
@@ -865,6 +914,7 @@ async function submitOrder() {
     document.getElementById('payOnlineOption').classList.remove('selected');
     document.getElementById('payDeliveryOption').classList.remove('selected');
     updateCartBar();
+    clearCartStorage();
   } catch (e) {
     alert('Erro ao enviar pedido: ' + e.message);
   } finally {
@@ -884,8 +934,10 @@ load();
   - Para produção, o ideal é hospedar isso (Vercel/Netlify) com um subdomínio
     por cliente (ex: pizzaria.comanda.app) ou um parâmetro de URL para trocar
     o CLIENT_ID dinamicamente, em vez de fixo no código.
-  - Não usa localStorage propositalmente (nome/telefone não ficam salvos entre
-    visitas) — se for pra produção, isso é fácil de adicionar de volta.
+  - O carrinho (itens, nome, telefone e forma de pagamento) é salvo em
+    localStorage enquanto o pedido não é confirmado — se o cliente sair do
+    site e voltar antes de finalizar, tudo continua preenchido. Assim que o
+    pedido é enviado com sucesso, o storage é limpo (clearCartStorage()).
   - FLUXO DE APROVAÇÃO: o pedido nasce com status "pending_approval" (padrão
     da coluna no banco). O worker só gera a cobrança do Mercado Pago quando o
     dono aprovar o pedido no painel E a forma escolhida for "online" — nesse
