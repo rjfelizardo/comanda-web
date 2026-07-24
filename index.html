@@ -37,7 +37,7 @@
   /* ---------- Hero / faixa da marca ---------- */
   .hero-banner {
     position: relative;
-    height: 108px;
+    height: 200px;
     background-image: url('https://wtttdomogogjmozbmdie.supabase.co/storage/v1/object/public/comanda-products/hero-banner-padaria.webp');
     background-size: cover;
     background-position: center 35%;
@@ -99,29 +99,30 @@
   .brand-card {
     position: relative;
     z-index: 5;
-    margin: -46px 20px 0;
+    margin: -46px 0 0 20px;
     background: var(--paper);
     border-radius: 18px;
-    padding: 14px 16px;
-    display: flex;
+    padding: 10px 18px 10px 10px;
+    display: inline-flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     box-shadow: 0 10px 24px rgba(59, 36, 22, .12);
   }
   .logo-circle {
-    width: 52px; height: 52px;
+    width: 44px; height: 44px;
     border-radius: 50%;
     background: var(--accent-soft);
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px;
+    font-size: 20px;
     flex: 0 0 auto;
     border: 2px solid var(--paper);
     box-shadow: 0 0 0 1px var(--hair);
   }
-  .brand-info { flex: 1; min-width: 0; }
+  .brand-info { min-width: 0; }
   .brand-info h1 {
-    font-size: 21px; font-weight: 600; margin: 0 0 3px;
+    font-size: 17px; font-weight: 600; margin: 0 0 2px;
     letter-spacing: -0.01em;
+    white-space: nowrap;
   }
   .meta-row {
     display: flex; align-items: center; gap: 7px;
@@ -180,6 +181,8 @@
 
   /* ---------- Grid ---------- */
   main { padding: 16px 20px 140px; max-width: 720px; margin: 0 auto; }
+  @media (min-width: 900px) { main { max-width: 1000px; } }
+  @media (min-width: 1200px) { main { max-width: 1280px; } }
 
   .grid {
     display: grid;
@@ -188,6 +191,12 @@
   }
   @media (min-width: 560px) {
     .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 900px) {
+    .grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (min-width: 1200px) {
+    .grid { grid-template-columns: repeat(5, 1fr); }
   }
 
   .card {
@@ -458,7 +467,7 @@
     </svg>
   </div>
   <div class="brand-card">
-    <div class="logo-circle"><img src="https://wtttdomogogjmozbmdie.supabase.co/storage/v1/object/public/comanda-products/icon%20(1).png" alt="Comanda" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div>
+    <div class="logo-circle"><img src="https://wtttdomogogjmozbmdie.supabase.co/storage/v1/object/public/comanda-products/icon.png" alt="Comanda" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></div>
     <div class="brand-info">
       <h1 class="brand-serif">Comanda</h1>
       <div class="meta-row">
