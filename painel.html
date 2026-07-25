@@ -64,6 +64,7 @@
   @media (min-width: 900px) { main { max-width: 1000px; } }
 
   .empty-msg { text-align: center; color: var(--muted); font-size: 14px; margin-top: 60px; }
+  .empty-msg small { display: block; margin-top: 8px; font-size: 11.5px; color: var(--danger); word-break: break-word; }
 
   .cards-grid {
     display: grid;
@@ -277,16 +278,19 @@ async function init() {
 // automaticamente antes de mostrar erro pro usuário)
 // ============================================================
 async function fetchComRetry(url, options = {}, tentativas = 3, esperaMs = 1500) {
+  let ultimoErro;
   for (let i = 0; i < tentativas; i++) {
     try {
       return await fetch(url, options);
     } catch (erro) {
+      ultimoErro = erro;
       const ultimaTentativa = i === tentativas - 1;
       console.log(`Tentativa ${i + 1}/${tentativas} falhou: ${erro.message}`);
       if (ultimaTentativa) throw erro;
       await new Promise(r => setTimeout(r, esperaMs));
     }
   }
+  throw ultimoErro;
 }
 
 async function loadOrders() {
@@ -307,7 +311,7 @@ async function loadOrders() {
     return true;
   } catch (e) {
     document.getElementById('ordersContainer').innerHTML =
-      '<p class="empty-msg">Erro ao carregar pedidos. Tente atualizar novamente.</p>';
+      '<p class="empty-msg">Erro ao carregar pedidos após 3 tentativas.<br><small>' + e.name + ': ' + e.message + '</small></p>';
     return true; // já estava logado, é erro de rede, não de senha
   } finally {
     btn.classList.remove('loading');
@@ -414,10 +418,10 @@ init();
     depois da primeira vez, sem precisar digitar de novo.
   - Falta ainda: aba de "Gerenciar Produtos" (preço/disponibilidade) — depende
     de novas rotas GET/PATCH /produtos no worker, que ainda não existem.
-  - loadOrders() agora usa fetchComRetry (até 3 tentativas, 1.5s de intervalo)
-    pra absorver a instabilidade intermitente de rede até o worker, sem
-    mostrar erro pro usuário numa falha isolada. O alert() de diagnóstico
-    temporário foi removido.
+  - loadOrders() usa fetchComRetry (até 3 tentativas, 1.5s de intervalo) pra
+    absorver a instabilidade intermitente de rede até o worker. Se as 3
+    tentativas falharem, a mensagem de erro real (nome + texto da exceção
+    JS) aparece na própria tela do painel, sem precisar de DevTools/Console.
 -->
 </body>
 </html>
