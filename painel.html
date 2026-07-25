@@ -272,6 +272,23 @@ async function init() {
   }
 }
 
+// ============================================================
+// FETCH COM RETRY (rede intermitente até o worker: tenta de novo
+// automaticamente antes de mostrar erro pro usuário)
+// ============================================================
+async function fetchComRetry(url, options = {}, tentativas = 3, esperaMs = 1500) {
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      return await fetch(url, options);
+    } catch (erro) {
+      const ultimaTentativa = i === tentativas - 1;
+      console.log(`Tentativa ${i + 1}/${tentativas} falhou: ${erro.message}`);
+      if (ultimaTentativa) throw erro;
+      await new Promise(r => setTimeout(r, esperaMs));
+    }
+  }
+}
+
 async function loadOrders() {
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('loading');
@@ -279,7 +296,7 @@ async function loadOrders() {
   try {
     const statusParam = ACTIVE_STATUSES.join(',');
     const senha = encodeURIComponent(localStorage.getItem(AUTH_STORAGE_KEY) || '');
-    const res = await fetch(
+    const res = await fetchComRetry(
       `${WORKER_URL}/pedidos?client_id=${CLIENT_ID}&status=${encodeURIComponent(statusParam)}&admin_password=${senha}`
     );
     if (res.status === 401) return false;
@@ -289,14 +306,6 @@ async function loadOrders() {
       'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
     return true;
   } catch (e) {
-    let testeGithub = 'não testado';
-    try {
-      const r2 = await fetch('https://api.github.com');
-      testeGithub = 'OK, status ' + r2.status;
-    } catch (e3) {
-      testeGithub = 'TAMBÉM FALHOU: ' + e3.message;
-    }
-    alert('DIAGNÓSTICO 3: ' + e.message + '\n\nTeste com api.github.com: ' + testeGithub); // TEMPORÁRIO
     document.getElementById('ordersContainer').innerHTML =
       '<p class="empty-msg">Erro ao carregar pedidos. Tente atualizar novamente.</p>';
     return true; // já estava logado, é erro de rede, não de senha
@@ -405,6 +414,10 @@ init();
     depois da primeira vez, sem precisar digitar de novo.
   - Falta ainda: aba de "Gerenciar Produtos" (preço/disponibilidade) — depende
     de novas rotas GET/PATCH /produtos no worker, que ainda não existem.
+  - loadOrders() agora usa fetchComRetry (até 3 tentativas, 1.5s de intervalo)
+    pra absorver a instabilidade intermitente de rede até o worker, sem
+    mostrar erro pro usuário numa falha isolada. O alert() de diagnóstico
+    temporário foi removido.
 -->
 </body>
 </html>
