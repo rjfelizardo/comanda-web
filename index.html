@@ -442,6 +442,29 @@
   .payment-option .opt-text { flex: 1; }
   .payment-option .opt-title { font-size: 13.5px; font-weight: 700; }
   .payment-option .opt-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- Meus Pedidos ---------- */
+  .order-card {
+    border: 1px solid var(--hair);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    background: var(--paper);
+  }
+  .order-card-top {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .order-code { font-weight: 700; font-size: 13px; }
+  .order-date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .order-status-badge {
+    font-size: 10.5px; font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .order-items { font-size: 12px; color: var(--ink-soft); line-height: 1.5; margin: 6px 0; }
+  .order-total { font-size: 13px; font-weight: 700; color: var(--accent); text-align: right; }
 </style>
 </head>
 <body>
@@ -467,6 +490,9 @@
   <div class="top-actions">
     <button class="delivery-btn" onclick="openDeliveryModal()">
       <span class="pin">📍</span> Calcular taxa e tempo de entrega
+    </button>
+    <button class="cart-icon-btn" onclick="openMyOrdersModal()" title="Meus pedidos" aria-label="Meus pedidos">
+      <span class="pin">📋</span>
     </button>
     <button class="cart-icon-btn" onclick="renderCartSheet(); openOverlay('cartOverlay');">
       <span class="pin">🛒</span>
@@ -570,6 +596,22 @@
     <div class="confirm-code" id="confirmCode">------</div>
     <p class="confirm-hint">Aguarde a aprovação da padaria — você será avisado pelo WhatsApp assim que o pedido for aprovado.</p>
     <button class="btn btn-primary" style="margin-top: 18px;" onclick="closeOverlay('confirmOverlay')">Fazer novo pedido</button>
+  </div>
+</div>
+
+<!-- Meus Pedidos -->
+<div id="myOrdersOverlay" class="overlay center">
+  <div class="sheet" style="max-width: 460px; border-radius: 22px;">
+    <h2>Meus pedidos</h2>
+    <label class="field-label">Seu WhatsApp</label>
+    <input class="field" id="myOrdersPhoneInput" placeholder="(87) 99999-9999" inputmode="tel" />
+    <div class="btn-row">
+      <button class="btn btn-primary" id="myOrdersSearchBtn" onclick="searchMyOrders()">Buscar meus pedidos</button>
+    </div>
+    <div id="myOrdersResult" style="margin-top: 16px;"></div>
+    <div class="btn-row" style="margin-top: 20px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeMyOrdersModal()">Fechar</button>
+    </div>
   </div>
 </div>
 
@@ -1005,6 +1047,94 @@ function esvaziarCarrinho() {
   renderCartSheet();
   saveCartToStorage();
   closeCart();
+}
+
+// ------------------------------------------------------------
+// Meus Pedidos — busca pelo WhatsApp (sem login/senha), usando a
+// função get_customer_orders (SECURITY DEFINER) já existente no banco.
+// Guarda o último telefone buscado em localStorage só pra pré-preencher
+// o campo da próxima vez, facilitando pra quem volta a consultar.
+// ------------------------------------------------------------
+const MY_ORDERS_PHONE_KEY = 'comanda_meus_pedidos_telefone_' + CLIENT_ID;
+
+const ORDER_STATUS_LABELS = {
+  pending_approval: { label: 'Aguardando aprovação', bg: '#F5E9D2', color: '#8A6A1F' },
+  approved: { label: 'Aprovado', bg: '#E4EEF7', color: '#2B5A85' },
+  rejected: { label: 'Recusado', bg: '#F5E4DE', color: 'var(--danger)' },
+  awaiting_payment: { label: 'Aguardando pagamento', bg: '#F5E9D2', color: '#8A6A1F' },
+  paid: { label: 'Pagamento efetuado', bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  in_preparation: { label: 'Em preparo', bg: '#E4EEF7', color: '#2B5A85' },
+  ready: { label: 'Pronto', bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  out_for_delivery: { label: 'Em rota de entrega', bg: '#E4EEF7', color: '#2B5A85' },
+  delivered: { label: 'Entregue', bg: 'var(--ok-bg)', color: 'var(--ok)' },
+  cancelled: { label: 'Cancelado', bg: '#F5E4DE', color: 'var(--danger)' },
+};
+
+function openMyOrdersModal() {
+  const saved = localStorage.getItem(MY_ORDERS_PHONE_KEY);
+  if (saved) document.getElementById('myOrdersPhoneInput').value = saved;
+  openOverlay('myOrdersOverlay');
+}
+
+function closeMyOrdersModal() {
+  closeOverlay('myOrdersOverlay');
+}
+
+async function searchMyOrders() {
+  const phone = document.getElementById('myOrdersPhoneInput').value.trim();
+  const resultBox = document.getElementById('myOrdersResult');
+  if (!phone) {
+    resultBox.innerHTML = '<p class="empty-msg" style="margin-top:10px;">Digite seu WhatsApp para buscar.</p>';
+    return;
+  }
+
+  const btn = document.getElementById('myOrdersSearchBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-dot"></span>Buscando...';
+  resultBox.innerHTML = '';
+
+  try {
+    const { data, error } = await supabaseClient.rpc('get_customer_orders', { p_phone: phone });
+    if (error) throw error;
+
+    localStorage.setItem(MY_ORDERS_PHONE_KEY, phone);
+
+    if (!data || data.length === 0) {
+      resultBox.innerHTML = '<p class="empty-msg" style="margin-top:10px;">Nenhum pedido encontrado com esse WhatsApp.</p>';
+      return;
+    }
+
+    const ordersSorted = [...data].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    resultBox.innerHTML = ordersSorted.map(renderOrderCard).join('');
+  } catch (e) {
+    resultBox.innerHTML = '<p class="empty-msg" style="margin-top:10px;">Não foi possível buscar seus pedidos agora. Tente novamente.</p>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Buscar meus pedidos';
+  }
+}
+
+function renderOrderCard(order) {
+  const status = ORDER_STATUS_LABELS[order.status] || { label: order.status, bg: 'var(--hair)', color: 'var(--ink)' };
+  const dataFormatada = new Date(order.created_at).toLocaleDateString('pt-BR', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+  const itens = Array.isArray(order.items) ? order.items : [];
+  const itensTexto = itens.map(i => `${i.quantity}x ${i.product_name}`).join(', ');
+
+  return `
+    <div class="order-card">
+      <div class="order-card-top">
+        <div>
+          <div class="order-code">#${order.tracking_code}</div>
+          <div class="order-date">${dataFormatada}</div>
+        </div>
+        <span class="order-status-badge" style="background:${status.bg}; color:${status.color};">${status.label}</span>
+      </div>
+      <div class="order-items">${itensTexto}</div>
+      <div class="order-total">${formatBRL(order.total_amount)}</div>
+    </div>
+  `;
 }
 
 // ------------------------------------------------------------
