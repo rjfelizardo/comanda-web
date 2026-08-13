@@ -638,6 +638,20 @@ window.addEventListener('popstate', () => {
   if (id) hideOverlayEl(id);
 });
 
+// Troca um overlay por outro SEM passar por history.back() (que é assíncrono
+// e entra em conflito se um history.pushState() rodar logo em seguida, como
+// acontece ao confirmar o pedido: fechar o carrinho e abrir a confirmação
+// quase ao mesmo tempo). Em vez de voltar-e-avançar, substitui a entrada do
+// histórico no lugar — sem risco de corrida entre back() e pushState().
+function replaceOverlay(oldId, newId) {
+  hideOverlayEl(oldId);
+  const idx = overlayStack.lastIndexOf(oldId);
+  if (idx !== -1) overlayStack.splice(idx, 1);
+  document.getElementById(newId).classList.add('visible');
+  overlayStack.push(newId);
+  history.replaceState({ comandaOverlay: newId }, '');
+}
+
 // Estado em memória, com persistência em localStorage pra não perder o
 // carrinho se o cliente sair do site antes de confirmar o pedido.
 let categories = [];
@@ -1036,9 +1050,8 @@ async function submitOrder() {
     if (error) throw error;
     const order = data[0];
 
-    closeCart();
     document.getElementById('confirmCode').textContent = order.tracking_code;
-    openOverlay('confirmOverlay');
+    replaceOverlay('cartOverlay', 'confirmOverlay');
     cart = {};
     paymentMethod = null;
     document.getElementById('payOnlineOption').classList.remove('selected');
