@@ -468,7 +468,7 @@
     <button class="delivery-btn" onclick="openDeliveryModal()">
       <span class="pin">📍</span> Calcular taxa e tempo de entrega
     </button>
-    <button class="cart-icon-btn" onclick="renderCartSheet(); document.getElementById('cartOverlay').classList.add('visible');">
+    <button class="cart-icon-btn" onclick="renderCartSheet(); openOverlay('cartOverlay');">
       <span class="pin">🛒</span>
       <span class="cart-icon-badge" id="cartIconBadge" style="display:none;">0</span>
     </button>
@@ -569,7 +569,7 @@
     <p class="confirm-hint">Seu código de acompanhamento é:</p>
     <div class="confirm-code" id="confirmCode">------</div>
     <p class="confirm-hint">Aguarde a aprovação da padaria — você será avisado pelo WhatsApp assim que o pedido for aprovado.</p>
-    <button class="btn btn-primary" style="margin-top: 18px;" onclick="document.getElementById('confirmOverlay').classList.remove('visible')">Fazer novo pedido</button>
+    <button class="btn btn-primary" style="margin-top: 18px;" onclick="closeOverlay('confirmOverlay')">Fazer novo pedido</button>
   </div>
 </div>
 
@@ -590,6 +590,46 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 function formatBRL(n) {
   return 'R$ ' + Number(n).toFixed(2).replace('.', ',');
 }
+
+// ------------------------------------------------------------
+// Gerenciamento de histórico para os overlays (carrinho, frete,
+// confirmação). Sem isso, o botão "voltar" do navegador fecha o site
+// inteiro no primeiro toque, porque abrir um overlay nunca empilhava
+// uma nova entrada no histórico — pro navegador era a mesma "página".
+//
+// Toda abertura empilha uma entrada de histórico; o botão físico de
+// voltar do navegador dispara "popstate", que fecha o overlay do topo
+// da pilha em vez de sair do site. Os botões internos de fechar
+// (closeCart, closeDeliveryModal, etc.) usam history.back() em vez de
+// esconder o overlay direto, pra manter a pilha do navegador em sincronia
+// — assim voltar de novo não reabre um overlay "fantasma".
+// ------------------------------------------------------------
+let overlayStack = [];
+
+function openOverlay(id) {
+  document.getElementById(id).classList.add('visible');
+  overlayStack.push(id);
+  history.pushState({ overlay: id }, '');
+}
+
+function closeOverlay(id) {
+  const el = document.getElementById(id);
+  if (!el.classList.contains('visible')) return;
+  const idx = overlayStack.lastIndexOf(id);
+  if (idx !== -1) {
+    overlayStack.splice(idx, 1);
+    if (history.state && history.state.overlay === id) {
+      history.back(); // dispara popstate, que esconde o overlay
+      return;
+    }
+  }
+  el.classList.remove('visible');
+}
+
+window.addEventListener('popstate', () => {
+  const id = overlayStack.pop();
+  if (id) document.getElementById(id).classList.remove('visible');
+});
 
 // Estado em memória, com persistência em localStorage pra não perder o
 // carrinho se o cliente sair do site antes de confirmar o pedido.
@@ -807,14 +847,14 @@ function updateCartBar() {
 
 document.getElementById('cartBar').onclick = () => {
   renderCartSheet();
-  document.getElementById('cartOverlay').classList.add('visible');
+  openOverlay('cartOverlay');
 };
 
 document.getElementById('nameInput').addEventListener('input', saveCartToStorage);
 document.getElementById('phoneInput').addEventListener('input', saveCartToStorage);
 
 function closeCart() {
-  document.getElementById('cartOverlay').classList.remove('visible');
+  closeOverlay('cartOverlay');
 }
 
 // ------------------------------------------------------------
@@ -831,10 +871,10 @@ function selectPaymentMethod(method) {
 // Cálculo de taxa e tempo de entrega
 // ------------------------------------------------------------
 function openDeliveryModal() {
-  document.getElementById('deliveryOverlay').classList.add('visible');
+  openOverlay('deliveryOverlay');
 }
 function closeDeliveryModal() {
-  document.getElementById('deliveryOverlay').classList.remove('visible');
+  closeOverlay('deliveryOverlay');
 }
 
 function showDeliveryResult(bairro) {
@@ -991,7 +1031,7 @@ async function submitOrder() {
 
     closeCart();
     document.getElementById('confirmCode').textContent = order.tracking_code;
-    document.getElementById('confirmOverlay').classList.add('visible');
+    openOverlay('confirmOverlay');
     cart = {};
     paymentMethod = null;
     document.getElementById('payOnlineOption').classList.remove('selected');
@@ -1028,6 +1068,10 @@ load();
     caso o link de pagamento é enviado por WhatsApp, não por aqui.
   - O insert do pedido acontece via RPC comanda.create_order (SECURITY DEFINER),
     não mais via .insert() direto nas tabelas orders/order_items pelo client anon.
+  - HISTÓRICO DO NAVEGADOR (13/08): openOverlay()/closeOverlay() empilham e
+    desempilham entradas em history, para que o botão físico/gesto de voltar
+    do navegador feche o overlay aberto (carrinho, frete, confirmação) em vez
+    de sair do site direto no primeiro toque.
 -->
 </body>
 </html>
