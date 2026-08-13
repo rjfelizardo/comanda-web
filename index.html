@@ -592,43 +592,50 @@ function formatBRL(n) {
 }
 
 // ------------------------------------------------------------
-// Gerenciamento de histórico para os overlays (carrinho, frete,
-// confirmação). Sem isso, o botão "voltar" do navegador fecha o site
-// inteiro no primeiro toque, porque abrir um overlay nunca empilhava
-// uma nova entrada no histórico — pro navegador era a mesma "página".
+// GERENCIAMENTO DE OVERLAYS (carrinho, frete, confirmação) + botão
+// "voltar" do navegador/celular.
 //
-// Toda abertura empilha uma entrada de histórico; o botão físico de
-// voltar do navegador dispara "popstate", que fecha o overlay do topo
-// da pilha em vez de sair do site. Os botões internos de fechar
-// (closeCart, closeDeliveryModal, etc.) usam history.back() em vez de
-// esconder o overlay direto, pra manter a pilha do navegador em sincronia
-// — assim voltar de novo não reabre um overlay "fantasma".
+// PROBLEMA: os overlays eram só divs escondidas via classList, sem
+// nenhuma entrada nova no histórico do navegador. Resultado: no celular,
+// o primeiro toque no botão de voltar não fechava o overlay aberto —
+// saía direto do site inteiro, mesmo com o carrinho aberto.
+//
+// SOLUÇÃO: toda vez que um overlay abre (openOverlay), empilhamos um
+// registro em overlayStack E criamos uma entrada nova no histórico
+// (history.pushState). Quando o usuário aperta voltar, o evento
+// "popstate" dispara e a gente só esconde o overlay do topo da pilha —
+// sem sair da página. Fechar pelo botão "Voltar"/"Fechar" da própria
+// tela (closeOverlay) também aciona história.back() quando aquele
+// overlay é o topo da pilha, mantendo os dois caminhos (botão físico
+// e botão da UI) sempre em sincronia com o histórico real.
 // ------------------------------------------------------------
 let overlayStack = [];
 
 function openOverlay(id) {
   document.getElementById(id).classList.add('visible');
   overlayStack.push(id);
-  history.pushState({ overlay: id }, '');
+  history.pushState({ comandaOverlay: id }, '');
+}
+
+function hideOverlayEl(id) {
+  document.getElementById(id).classList.remove('visible');
 }
 
 function closeOverlay(id) {
-  const el = document.getElementById(id);
-  if (!el.classList.contains('visible')) return;
-  const idx = overlayStack.lastIndexOf(id);
-  if (idx !== -1) {
-    overlayStack.splice(idx, 1);
-    if (history.state && history.state.overlay === id) {
-      history.back(); // dispara popstate, que esconde o overlay
-      return;
-    }
+  if (overlayStack.length && overlayStack[overlayStack.length - 1] === id) {
+    // Overlay no topo da pilha: volta no histórico, o popstate cuida de escondê-lo.
+    history.back();
+  } else {
+    // Fallback (não deveria acontecer no fluxo normal): esconde direto.
+    hideOverlayEl(id);
+    const idx = overlayStack.lastIndexOf(id);
+    if (idx !== -1) overlayStack.splice(idx, 1);
   }
-  el.classList.remove('visible');
 }
 
 window.addEventListener('popstate', () => {
   const id = overlayStack.pop();
-  if (id) document.getElementById(id).classList.remove('visible');
+  if (id) hideOverlayEl(id);
 });
 
 // Estado em memória, com persistência em localStorage pra não perder o
@@ -1068,10 +1075,11 @@ load();
     caso o link de pagamento é enviado por WhatsApp, não por aqui.
   - O insert do pedido acontece via RPC comanda.create_order (SECURITY DEFINER),
     não mais via .insert() direto nas tabelas orders/order_items pelo client anon.
-  - HISTÓRICO DO NAVEGADOR (13/08): openOverlay()/closeOverlay() empilham e
-    desempilham entradas em history, para que o botão físico/gesto de voltar
-    do navegador feche o overlay aberto (carrinho, frete, confirmação) em vez
-    de sair do site direto no primeiro toque.
+  - CORREÇÃO (13/08): botão de voltar do navegador/celular fechava o site
+    direto no primeiro toque, mesmo com carrinho/frete/confirmação abertos,
+    porque os overlays não geravam entrada no histórico. Corrigido com
+    openOverlay()/closeOverlay() usando history.pushState + popstate — ver
+    comentário na seção "GERENCIAMENTO DE OVERLAYS" no início do <script>.
 -->
 </body>
 </html>
