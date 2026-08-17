@@ -423,5 +423,96 @@ init();
     tentativas falharem, a mensagem de erro real (nome + texto da exceção
     JS) aparece na própria tela do painel, sem precisar de DevTools/Console.
 -->
+
+<!-- ============================================================
+     NOTIFICAÇÕES PUSH DE PEDIDO NOVO (17/08)
+     Botão flutuante que pede permissão de notificação, registra o
+     Service Worker (sw.js, na raiz do site) e salva a assinatura no
+     banco via RPC comanda.save_push_subscription. Quando um pedido
+     novo é criado, um trigger no banco chama o worker
+     comanda-notifications, que envia o push pra todos os dispositivos
+     cadastrados desse client_id.
+     ============================================================ -->
+<button id="btnAtivarNotif" onclick="ativarNotificacoes()"
+  style="position:fixed; bottom:16px; right:16px; z-index:50;
+         background:var(--accent); color:#fff; border:none;
+         border-radius:12px; padding:12px 16px; font-size:13px;
+         font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.15);">
+  🔔 Ativar notificações de pedido novo
+</button>
+
+<script>
+const SUPABASE_URL_PUSH = 'https://wtttdomogogjmozbmdie.supabase.co';
+const SUPABASE_ANON_KEY_PUSH = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0dHRkb21vZ29nam1vemJtZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODc0ODksImV4cCI6MjA5OTY2MzQ4OX0.PnoH65ldp23syBkhRLoSXi1iz1ndJ0Wn7UHbm8DfdN0';
+const VAPID_PUBLIC_KEY = 'BE9rbkCNBQCjjafz53FU8Z-s3p7cDVUbZYUnQJibV5CrVUPMuHz5Ftp8cCv5Q7HQjswolX2p5rHQ0G_fycjVr7w';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+async function ativarNotificacoes() {
+  const btn = document.getElementById('btnAtivarNotif');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('Seu navegador não suporta notificações push.');
+    return;
+  }
+
+  const permissao = await Notification.requestPermission();
+  if (permissao !== 'granted') {
+    alert('Permissão de notificação não concedida.');
+    return;
+  }
+
+  btn.textContent = 'Ativando...';
+  btn.disabled = true;
+
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    const subJson = subscription.toJSON();
+
+    const resp = await fetch(`${SUPABASE_URL_PUSH}/rest/v1/rpc/save_push_subscription`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY_PUSH,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY_PUSH}`,
+        'Content-Type': 'application/json',
+        'Content-Profile': 'comanda',
+      },
+      body: JSON.stringify({
+        p_client_id: CLIENT_ID,
+        p_endpoint: subJson.endpoint,
+        p_p256dh: subJson.keys.p256dh,
+        p_auth: subJson.keys.auth,
+      }),
+    });
+
+    if (resp.ok) {
+      btn.textContent = '✅ Notificações ativadas';
+    } else {
+      btn.textContent = '🔔 Ativar notificações de pedido novo';
+      alert('Não foi possível ativar. Tenta de novo.');
+    }
+  } catch (e) {
+    btn.textContent = '🔔 Ativar notificações de pedido novo';
+    alert('Erro ao ativar notificações: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+
 </body>
 </html>
