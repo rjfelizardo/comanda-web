@@ -516,3 +516,25 @@ async function ativarNotificacoes() {
 
 </body>
 </html>
+<script>
+  // PATCH: aprovacao de pedido agora chama /aprovar (gera cobranca MP + manda WhatsApp)
+  const updateStatusOriginal = updateStatus;
+  async function updateStatus(orderId, newStatus) {
+    if (newStatus !== 'approved') {
+      return updateStatusOriginal(orderId, newStatus);
+    }
+    try {
+      const senha = encodeURIComponent(localStorage.getItem(AUTH_STORAGE_KEY) || '');
+      const res = await fetch(`${WORKER_URL}/pedidos/${orderId}/aprovar?admin_password=${senha}`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        alert('Nao foi possivel aprovar o pedido. Tente novamente.');
+        return;
+      }
+      loadOrders();
+    } catch (e) {
+      alert('Erro de conexao ao aprovar o pedido.');
+    }
+  }
+</script>
