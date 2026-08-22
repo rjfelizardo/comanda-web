@@ -184,6 +184,23 @@
   </main>
 </div>
 
+<!-- ============================================================
+     NOTIFICAÇÕES PUSH DE PEDIDO NOVO (17/08)
+     Botão flutuante que pede permissão de notificação, registra o
+     Service Worker (sw.js, na raiz do site) e salva a assinatura no
+     banco via RPC comanda.save_push_subscription. Quando um pedido
+     novo é criado, um trigger no banco chama o worker
+     comanda-notifications, que envia o push pra todos os dispositivos
+     cadastrados desse client_id.
+     ============================================================ -->
+<button id="btnAtivarNotif" onclick="ativarNotificacoes()"
+  style="position:fixed; bottom:16px; right:16px; z-index:50;
+         background:var(--accent); color:#fff; border:none;
+         border-radius:12px; padding:12px 16px; font-size:13px;
+         font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.15);">
+  🔔 Ativar notificações de pedido novo
+</button>
+
 <script>
 // ============================================================
 // CONFIGURAÇÃO
@@ -384,7 +401,13 @@ function renderOrders(orders) {
   container.appendChild(grid);
 }
 
+// Aprovar um pedido tem uma etapa a mais: chama /aprovar (que gera a
+// cobrança no Mercado Pago e manda o link por WhatsApp), em vez de
+// /atualizar (que só troca o status, sem gerar cobrança nenhuma).
 async function updateStatus(orderId, newStatus) {
+  if (newStatus === 'approved') {
+    return aprovarPedido(orderId);
+  }
   try {
     const senha = encodeURIComponent(localStorage.getItem(AUTH_STORAGE_KEY) || '');
     const res = await fetch(`${WORKER_URL}/pedidos/${orderId}/atualizar?admin_password=${senha}`, {
@@ -398,6 +421,24 @@ async function updateStatus(orderId, newStatus) {
     loadOrders();
   } catch (e) {
     alert('Erro de conexão ao atualizar o pedido.');
+  }
+}
+
+async function aprovarPedido(orderId) {
+  try {
+    const senha = encodeURIComponent(localStorage.getItem(AUTH_STORAGE_KEY) || '');
+    const res = await fetch(`${WORKER_URL}/pedidos/${orderId}/aprovar?admin_password=${senha}`, {
+      method: 'POST',
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const detalhe = data?.details ? JSON.stringify(data.details) : (data?.error || 'Erro desconhecido');
+      alert('Pedido não pôde ser aprovado: ' + detalhe);
+      return;
+    }
+    loadOrders();
+  } catch (e) {
+    alert('Erro de conexão ao aprovar o pedido: ' + e.message);
   }
 }
 
@@ -422,24 +463,13 @@ init();
     absorver a instabilidade intermitente de rede até o worker. Se as 3
     tentativas falharem, a mensagem de erro real (nome + texto da exceção
     JS) aparece na própria tela do painel, sem precisar de DevTools/Console.
+  - Aprovar pedido chama /aprovar (gera cobrança MP + manda link por
+    WhatsApp), e agora mostra na tela (via alert) o motivo exato se o
+    Mercado Pago recusar a cobrança, em vez de falhar em silêncio.
+    Antes disso vivia num <script> solto DEPOIS do </html> que redefinia
+    updateStatus por cima — removido, a lógica agora é parte da função
+    original desde o início.
 -->
-
-<!-- ============================================================
-     NOTIFICAÇÕES PUSH DE PEDIDO NOVO (17/08)
-     Botão flutuante que pede permissão de notificação, registra o
-     Service Worker (sw.js, na raiz do site) e salva a assinatura no
-     banco via RPC comanda.save_push_subscription. Quando um pedido
-     novo é criado, um trigger no banco chama o worker
-     comanda-notifications, que envia o push pra todos os dispositivos
-     cadastrados desse client_id.
-     ============================================================ -->
-<button id="btnAtivarNotif" onclick="ativarNotificacoes()"
-  style="position:fixed; bottom:16px; right:16px; z-index:50;
-         background:var(--accent); color:#fff; border:none;
-         border-radius:12px; padding:12px 16px; font-size:13px;
-         font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,.15);">
-  🔔 Ativar notificações de pedido novo
-</button>
 
 <script>
 const SUPABASE_URL_PUSH = 'https://wtttdomogogjmozbmdie.supabase.co';
@@ -516,25 +546,3 @@ async function ativarNotificacoes() {
 
 </body>
 </html>
-<script>
-  // PATCH: aprovacao de pedido agora chama /aprovar (gera cobranca MP + manda WhatsApp)
-  const updateStatusOriginal = updateStatus;
-  async function updateStatus(orderId, newStatus) {
-    if (newStatus !== 'approved') {
-      return updateStatusOriginal(orderId, newStatus);
-    }
-    try {
-      const senha = encodeURIComponent(localStorage.getItem(AUTH_STORAGE_KEY) || '');
-      const res = await fetch(`${WORKER_URL}/pedidos/${orderId}/aprovar?admin_password=${senha}`, {
-        method: 'POST',
-      });
-      if (!res.ok) {
-        alert('Nao foi possivel aprovar o pedido. Tente novamente.');
-        return;
-      }
-      loadOrders();
-    } catch (e) {
-      alert('Erro de conexao ao aprovar o pedido.');
-    }
-  }
-</script>
