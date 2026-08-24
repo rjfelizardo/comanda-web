@@ -40,14 +40,8 @@
     height: 200px;
     background-image: url('https://wtttdomogogjmozbmdie.supabase.co/storage/v1/object/public/comanda-products/hero-banner-padaria.webp');
     background-size: cover;
-    background-position: center 35%;
+    background-position: center 55%;
     overflow: hidden;
-  }
-  @media (min-width: 768px) {
-    .hero-banner { height: 320px; }
-  }
-  @media (min-width: 1200px) {
-    .hero-banner { height: 400px; }
   }
   .hero-banner::after {
     content: '';
@@ -1232,10 +1226,13 @@ load();
   - AJUSTE (24/08): altura da caixa de imagem dos cards (.card-img-wrap)
     aumentada de 100px para 150px — com object-fit: cover, a altura menor
     cortava demais as fotos verticais/retrato usadas no catálogo.
-  - AJUSTE (24/08): altura do .hero-banner agora responsiva via media query
-    (200px no celular, 320px a partir de 768px, 400px a partir de 1200px) —
-    em telas largas o cover cortava demais a composição da foto de fundo,
-    já que a altura fixa de 200px não escalava com o aumento de largura.
+  - AJUSTE (24/08): tentativa de altura responsiva no .hero-banner via media
+    query foi revertida — empurrava demais os produtos pra baixo em qualquer
+    tela. Mantida a altura fixa original (200px). Em vez disso, ajustado o
+    background-position de "center 35%" para "center 55%", trazendo a placa
+    "Nossa Casa" e o hambúrguer pro centro do corte em telas largas (tablet/
+    desktop), onde o cover precisa cortar mais verticalmente pra cobrir a
+    largura total.
 -->
 </body>
 </html>
