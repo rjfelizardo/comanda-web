@@ -43,6 +43,12 @@
     background-position: center 35%;
     overflow: hidden;
   }
+  @media (min-width: 768px) {
+    .hero-banner { height: 320px; }
+  }
+  @media (min-width: 1200px) {
+    .hero-banner { height: 400px; }
+  }
   .hero-banner::after {
     content: '';
     position: absolute;
@@ -1226,6 +1232,10 @@ load();
   - AJUSTE (24/08): altura da caixa de imagem dos cards (.card-img-wrap)
     aumentada de 100px para 150px — com object-fit: cover, a altura menor
     cortava demais as fotos verticais/retrato usadas no catálogo.
+  - AJUSTE (24/08): altura do .hero-banner agora responsiva via media query
+    (200px no celular, 320px a partir de 768px, 400px a partir de 1200px) —
+    em telas largas o cover cortava demais a composição da foto de fundo,
+    já que a altura fixa de 200px não escalava com o aumento de largura.
 -->
 </body>
 </html>
