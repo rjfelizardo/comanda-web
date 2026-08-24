@@ -210,7 +210,7 @@
     position: relative;
     background: var(--accent-soft);
     border-radius: 12px;
-    height: 100px;
+    height: 150px;
     overflow: visible;
     margin-bottom: 10px;
   }
@@ -1223,6 +1223,9 @@ load();
     porque os overlays não geravam entrada no histórico. Corrigido com
     openOverlay()/closeOverlay() usando history.pushState + popstate — ver
     comentário na seção "GERENCIAMENTO DE OVERLAYS" no início do <script>.
+  - AJUSTE (24/08): altura da caixa de imagem dos cards (.card-img-wrap)
+    aumentada de 100px para 150px — com object-fit: cover, a altura menor
+    cortava demais as fotos verticais/retrato usadas no catálogo.
 -->
 </body>
 </html>
