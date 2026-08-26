@@ -247,7 +247,7 @@
     color: #fff; font-size: 15px; font-weight: 700;
     cursor: pointer;
   }
-  .stepper .qty { color: #fff; font-size: 12.5px; font-weight: 700; min-width: 12px; text-align: center; }
+  .stepper .qty { color: #fff; font-size: 12.5px; font-weight: 700; min-width: 28px; text-align: center; white-space: nowrap; }
 
   .card-name { font-size: 12.5px; font-weight: 700; min-height: 32px; line-height: 1.3; }
   .card-portion { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
@@ -634,6 +634,31 @@ function formatBRL(n) {
 }
 
 // ------------------------------------------------------------
+// Rótulo de quantidade dos itens.
+//
+// Produtos comuns (unit_label = 'un', padrão): a quantidade exibida
+// é o número de unidades mesmo (1, 2, 3...).
+//
+// Produtos vendidos por peso (unit_label = '500g', hoje só Hortifruti):
+// cada "unidade" no carrinho vale uma porção de 500g. O preço salvo em
+// products.price já é o valor dessa porção de 500g (a Pamela informa o
+// preço por kg normalmente, e a conversão pra 500g é feita na hora de
+// salvar no banco, não aqui). Aqui só cuidamos de exibir a quantidade
+// como peso (ex: "500g", "1kg", "1,5kg") em vez de um número puro de
+// unidades — o cálculo do total (price * quantity) continua igual.
+// ------------------------------------------------------------
+function formatQuantityLabel(item, qty) {
+  if (item.unit_label === '500g') {
+    const grams = qty * 500;
+    if (grams < 1000) return grams + 'g';
+    const kg = grams / 1000;
+    const kgStr = Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace('.', ',');
+    return kgStr + 'kg';
+  }
+  return String(qty);
+}
+
+// ------------------------------------------------------------
 // GERENCIAMENTO DE OVERLAYS (carrinho, frete, confirmação) + botão
 // "voltar" do navegador/celular.
 //
@@ -825,10 +850,7 @@ function renderGrid() {
     const qty = cart[item.id] || 0;
     const card = document.createElement('div');
     card.className = 'card';
-    const category = categories.find(c => c.id === item.category_id);
-    const isHortifruti = normalize(category?.name).includes('hortifruti');
-    const isMorango = normalize(item.name) === 'morango';
-    const portionText = isHortifruti && !isMorango ? '<div class="card-portion">Porção de 1kg</div>' : '';
+    const portionText = item.unit_label === '500g' ? '<div class="card-portion">Vendido em porções de 500g</div>' : '';
     card.innerHTML = `
       <div class="card-img-wrap">
         <div class="card-img-clip">
@@ -841,19 +863,20 @@ function renderGrid() {
       <div class="card-price">${formatBRL(item.price)}</div>
     `;
     const slot = card.querySelector('.qty-slot');
-    renderQtyControl(slot, item.id, qty);
+    renderQtyControl(slot, item.id, qty, item);
     grid.appendChild(card);
   });
 }
 
-function renderQtyControl(slot, productId, qty) {
+function renderQtyControl(slot, productId, qty, item) {
   if (qty === 0) {
     slot.innerHTML = `<button class="add-btn" onclick="addToCart('${productId}')">+</button>`;
   } else {
+    const qtyLabel = formatQuantityLabel(item, qty);
     slot.innerHTML = `
       <div class="stepper">
         <button onclick="removeFromCart('${productId}')">-</button>
-        <span class="qty">${qty}</span>
+        <span class="qty">${qtyLabel}</span>
         <button onclick="addToCart('${productId}')">+</button>
       </div>`;
   }
@@ -1009,8 +1032,10 @@ function renderCartSheet() {
   cartItems().forEach(item => {
     const row = document.createElement('div');
     row.className = 'cart-row';
+    const qtyLabel = formatQuantityLabel(item, item.quantity);
+    const displayName = item.unit_label === '500g' ? `${qtyLabel} de ${item.name}` : `${qtyLabel}x ${item.name}`;
     row.innerHTML = `
-      <span class="name">${item.quantity}x ${item.name}</span>
+      <span class="name">${displayName}</span>
       <span class="price">${formatBRL(item.price * item.quantity)}</span>
       <button class="remove-btn" onclick="removeItemCompletely('${item.id}')" aria-label="Remover item" title="Remover item">🗑</button>
     `;
@@ -1233,6 +1258,15 @@ load();
     "Nossa Casa" e o hambúrguer pro centro do corte em telas largas (tablet/
     desktop), onde o cover precisa cortar mais verticalmente pra cobrir a
     largura total.
+  - AJUSTE (26/08): venda por peso em Hortifruti passou de "porção fixa de
+    1kg" (com exceção hardcoded pro morango) para incrementos de 500g em
+    TODOS os itens da categoria, usando a coluna unit_label do banco
+    (products.unit_label = '500g') em vez de checar o nome da categoria/item
+    no front-end. Nova função formatQuantityLabel() converte a quantidade
+    do carrinho (nº de porções de 500g) em texto de peso (500g, 1kg, 1,5kg)
+    tanto no stepper do card quanto na linha do carrinho. O cálculo do total
+    não muda: products.price já deve estar salvo como o valor da porção de
+    500g (metade do preço por kg informado pela Pamela).
 -->
 </body>
 </html>
