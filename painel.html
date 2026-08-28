@@ -128,6 +128,7 @@
   .btn-reject { background: var(--danger-bg); color: var(--danger); }
   .btn-advance { background: var(--accent); color: #fff; }
   .btn-cancel { background: var(--hair); color: var(--ink-soft); }
+  .btn-print { background: var(--ink); color: #fff; flex: 0 0 100%; margin-top: 8px; }
   .btn:disabled { opacity: .5; cursor: default; }
 
   /* Login simples de senha */
@@ -154,6 +155,50 @@
     font-weight: 700; cursor: pointer;
   }
   .login-error { color: var(--danger); font-size: 12px; margin-top: 8px; }
+
+  /* ============================================================
+     IMPRESSÃO DO CUPOM (28/08)
+     #printArea fica sempre no HTML mas invisível na tela normal.
+     Só quando a impressão é disparada (window.print), o CSS
+     @media print vira as regras: some com o resto da página e
+     mostra só o cupom, formatado pra largura de bobina térmica.
+     Largura padrão: 80mm. Se a impressora for de 58mm, troca o
+     "width: 80mm" abaixo por "width: 58mm".
+     ============================================================ */
+  .print-only { display: none; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea {
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+      width: 80mm;
+      padding: 3mm;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #000;
+    }
+    #printArea .cupom-titulo {
+      text-align: center; font-weight: 700; font-size: 14px;
+      margin-bottom: 2mm;
+    }
+    #printArea .cupom-linha {
+      border-top: 1px dashed #000; margin: 2mm 0;
+    }
+    #printArea .cupom-item {
+      display: flex; justify-content: space-between; font-size: 11.5px;
+    }
+    #printArea .cupom-total {
+      display: flex; justify-content: space-between;
+      font-weight: 700; font-size: 13px; margin-top: 2mm;
+    }
+    #printArea .cupom-rodape {
+      text-align: center; font-size: 10.5px; margin-top: 3mm;
+    }
+  }
 </style>
 </head>
 <body>
@@ -183,6 +228,9 @@
     <div id="ordersContainer"></div>
   </main>
 </div>
+
+<!-- Área usada só na hora de imprimir (ver CSS @media print acima) -->
+<div id="printArea" class="print-only"></div>
 
 <!-- ============================================================
      NOTIFICAÇÕES PUSH DE PEDIDO NOVO (17/08)
@@ -246,6 +294,10 @@ const NEXT_LABEL = {
   ready: 'Saiu para entrega',
   out_for_delivery: 'Marcar como entregue',
 };
+
+// Cache do último resultado de /pedidos, usado pra montar o cupom de
+// impressão sem precisar buscar o pedido de novo na API.
+let ORDERS_CACHE = [];
 
 function formatBRL(n) {
   return 'R$ ' + Number(n).toFixed(2).replace('.', ',');
@@ -322,7 +374,8 @@ async function loadOrders() {
     );
     if (res.status === 401) return false;
     const data = await res.json();
-    renderOrders(data.orders || []);
+    ORDERS_CACHE = data.orders || [];
+    renderOrders(ORDERS_CACHE);
     document.getElementById('lastUpdated').textContent =
       'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
     return true;
@@ -376,6 +429,8 @@ function renderOrders(orders) {
         <button class="btn btn-cancel" onclick="updateStatus('${order.id}', 'cancelled')">Cancelar</button>
       `;
     }
+    // Botão de imprimir aparece em qualquer status, numa linha própria.
+    actionsHtml += `<button class="btn btn-print" onclick="imprimirPedido('${order.id}')">🖨️ Imprimir pedido</button>`;
 
     card.innerHTML = `
       <div class="card-top">
@@ -442,6 +497,51 @@ async function aprovarPedido(orderId) {
   }
 }
 
+// ============================================================
+// IMPRESSÃO DO PEDIDO (28/08)
+// Monta o cupom (não fiscal) em #printArea e dispara o diálogo de
+// impressão do navegador. A impressora térmica USB do terminal
+// aparece nesse diálogo como uma impressora normal do sistema —
+// basta que o driver dela já esteja instalado no computador.
+// ============================================================
+function imprimirPedido(orderId) {
+  const order = ORDERS_CACHE.find(o => o.id === orderId);
+  if (!order) {
+    alert('Pedido não encontrado pra impressão. Atualize a lista e tente de novo.');
+    return;
+  }
+
+  const total = (order.order_items || []).reduce((s, i) => s + Number(i.subtotal), 0);
+  const dataHora = new Date().toLocaleString('pt-BR');
+  const formaPagamento = order.payment_method === 'online' ? 'Pago online' : 'Pagamento na entrega';
+
+  const itensHtml = (order.order_items || []).map(i => `
+    <div class="cupom-item">
+      <span>${i.quantity}x ${i.product_name}</span>
+      <span>${formatBRL(i.subtotal)}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('printArea').innerHTML = `
+    <div class="cupom-titulo">PEDIDO #${order.tracking_code}</div>
+    <div>${dataHora}</div>
+    <div class="cupom-linha"></div>
+    <div>Cliente: ${order.customer_name}</div>
+    <div>Tel: ${order.customer_phone}</div>
+    <div class="cupom-linha"></div>
+    ${itensHtml}
+    <div class="cupom-linha"></div>
+    <div class="cupom-total">
+      <span>TOTAL</span>
+      <span>${formatBRL(total)}</span>
+    </div>
+    <div>${formaPagamento}</div>
+    <div class="cupom-rodape">Comprovante sem valor fiscal</div>
+  `;
+
+  window.print();
+}
+
 // Atualiza sozinho a cada 30 segundos
 setInterval(() => {
   if (localStorage.getItem(AUTH_STORAGE_KEY)) loadOrders();
@@ -469,6 +569,14 @@ init();
     Antes disso vivia num <script> solto DEPOIS do </html> que redefinia
     updateStatus por cima — removido, a lógica agora é parte da função
     original desde o início.
+  - Impressão (28/08): botão "🖨️ Imprimir pedido" em cada card, em
+    qualquer status. Usa window.print() nativo do navegador (não é
+    ESC/POS direto na impressora) — a impressora térmica USB do
+    terminal aparece no diálogo de impressão do sistema, desde que o
+    driver dela esteja instalado no Windows. Cupom sem valor fiscal,
+    formatado pra 80mm (trocar pra 58mm no CSS @media print se for o
+    caso). Pedido é buscado do cache ORDERS_CACHE, sem nova chamada
+    à API.
 -->
 
 <script>
