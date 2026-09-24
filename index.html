@@ -38,9 +38,9 @@
   .hero-banner {
     position: relative;
     height: 200px;
-    background-image: url('https://wtttdomogogjmozbmdie.supabase.co/storage/v1/object/public/comanda-products/hero-banner-padaria.webp');
+    background-image: url('https://wtttdomogogjmozbmdie.supabase.co/storage/v1/object/public/comanda-products/banners/pizzaria-agua-na-boca-banner.webp');
     background-size: cover;
-    background-position: center 55%;
+    background-position: center center;
     overflow: hidden;
   }
   .hero-banner::after {
@@ -540,7 +540,7 @@
       <div class="icon-circle">💳</div>
       <div class="opt-text">
         <div class="opt-title">Pagar online</div>
-        <div class="opt-sub">Pix ou cartão, assim que a padaria aprovar seu pedido</div>
+        <div class="opt-sub">Pix ou cartão, assim que seu pedido for aprovado</div>
       </div>
     </div>
     <div class="payment-option" id="payDeliveryOption" onclick="selectPaymentMethod('entrega')">
@@ -594,7 +594,7 @@
     <h2>Pedido enviado!</h2>
     <p class="confirm-hint">Seu código de acompanhamento é:</p>
     <div class="confirm-code" id="confirmCode">------</div>
-    <p class="confirm-hint">Aguarde a aprovação da padaria — você será avisado pelo WhatsApp assim que o pedido for aprovado.</p>
+    <p class="confirm-hint">Aguarde a aprovação do seu pedido — você será avisado pelo WhatsApp assim que ele for aprovado.</p>
     <button class="btn btn-primary" style="margin-top: 18px;" onclick="closeOverlay('confirmOverlay')">Fazer novo pedido</button>
   </div>
 </div>
@@ -622,8 +622,8 @@
 const SUPABASE_URL = 'https://wtttdomogogjmozbmdie.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0dHRkb21vZ29nam1vemJtZGllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwODc0ODksImV4cCI6MjA5OTY2MzQ4OX0.PnoH65ldp23syBkhRLoSXi1iz1ndJ0Wn7UHbm8DfdN0';
 const PAYMENTS_WORKER_URL = 'https://comanda-payments.bridgeatravessia.workers.dev';
-// Cliente (padaria) exibido nesse cardápio — troque por outro client_id para outro estabelecimento.
-const CLIENT_ID = 'b1deea70-0909-4be4-9686-5502522d2d10';
+// Cliente exibido nesse cardápio — troque por outro client_id para outro estabelecimento.
+const CLIENT_ID = '7da7deb2-b899-452c-858d-6423b8181eeb'; // Pizzaria Água na Boca
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   db: { schema: 'comanda' },
