@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/upload';
 import { bestMatch } from '@/lib/matchPhotos';
+import PhotoNames from '@/components/painel/PhotoNames';
 
 type P = { id: string; name: string; photo_url: string | null };
 type Row = { file: File; productId: string; url: string };
@@ -66,6 +67,10 @@ export default function PhotoImport({ businessId, products, onClose, onDone }: {
           <p className="text-sm text-ink/70">
             Escolha várias fotos de uma vez. Nomeie cada arquivo com o nome do produto (ex.: <b>pizza-calabresa.jpg</b>) e a gente liga cada foto ao produto certo. O que não for reconhecido você escolhe na lista.
           </p>
+          <details className="rounded-xl border border-sand p-3">
+            <summary className="cursor-pointer font-semibold">Ver modelo de nomes dos arquivos</summary>
+            <div className="mt-3"><PhotoNames businessId={businessId} products={products} /></div>
+          </details>
           <label className="btn-primary cursor-pointer text-center">
             {rows.length ? 'Escolher outras fotos' : 'Escolher fotos'}
             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { pick(e.target.files); e.target.value = ''; }} />

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/upload';
 import { brl, normalizePhone, WEEKDAYS } from '@/lib/format';
+import PhotoNames from '@/components/painel/PhotoNames';
 
 type Day = { on: boolean; opens: string; closes: string };
 type Zone = { id: string; name: string; fee: number; min_order: number; eta_min: number | null; is_active: boolean; max_km?: number | null };
@@ -269,6 +270,12 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
       )}
       {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{err}</p>}
       {msg && <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{msg}</p>}
+
+      <section className="card p-4">
+        <h2 className="font-bold">Nomes para importar fotos</h2>
+        <p className="mb-3 text-sm text-ink/60">Modelo para renomear as imagens antes de usar “Importar fotos” no Cardápio.</p>
+        <PhotoNames businessId={businessId} />
+      </section>
 
       <section className="card p-4">
         <h2 className="font-bold">Regiões de entrega e taxas</h2>
