@@ -173,6 +173,17 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
     } catch { setErr('Sem conexão.'); }
     setWaBusy(false);
   }
+  async function syncWa() {
+    setErr(''); setMsg('');
+    setWaBusy(true);
+    try {
+      const res = await fetch('/api/wa/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ business_id: businessId }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.ok) setErr(j.error || j.phone?.error || 'A Meta não aceitou. Confira se o token tem a permissão whatsapp_business_management.');
+      else setMsg('Webhook reconectado! Mande uma mensagem para o número para testar.');
+    } catch { setErr('Sem conexão.'); }
+    setWaBusy(false);
+  }
   async function toggleWaBot(on: boolean) {
     const { error } = await supabaseBrowser().rpc('set_wa_bot', { p_business: businessId, p_enabled: on });
     if (error) return setErr('Não foi possível alterar.');
@@ -403,6 +414,7 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
             {canEdit && (
               <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
                 <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={wa.bot_enabled} onChange={(e) => toggleWaBot(e.target.checked)} /> Atendente automático ligado</label>
+                <button className="btn-ghost btn-sm" disabled={waBusy} onClick={syncWa}>{waBusy ? 'Reconectando…' : 'Reconectar webhook'}</button>
                 <button className="text-red-700 underline" onClick={disconnectWa}>Desconectar WhatsApp</button>
               </div>
             )}

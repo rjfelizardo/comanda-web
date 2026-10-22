@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { checkNumber } from '@/lib/whatsapp';
+import { checkNumber, syncWebhook } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,5 +28,7 @@ export async function POST(req: Request) {
     const msg = /phone_in_use/.test(m) ? 'Esse número já está conectado a outra loja.' : /forbidden|42501/.test(m) ? 'Só o dono ou gerente pode conectar o WhatsApp.' : 'Rode o SQL 12 no Supabase para ativar o atendente.';
     return NextResponse.json({ error: msg }, { status: 403 });
   }
-  return NextResponse.json({ ok: true, number: info.display, name: info.name });
+  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '';
+  const sync = await syncWebhook(token, phoneId, wabaId || null, `https://${host}/api/whatsapp/webhook`).catch(() => null);
+  return NextResponse.json({ ok: true, number: info.display, name: info.name, webhook: sync?.phone?.ok ?? false });
 }

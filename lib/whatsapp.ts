@@ -63,3 +63,26 @@ export async function transcribeAudio(token: string, mediaId: string): Promise<s
   const t = typeof j.text === 'string' ? j.text.trim() : '';
   return t || null;
 }
+
+// Aponta as mensagens do numero para o Comanda (sobrepoe qualquer webhook antigo, ex.: robo da padaria).
+export async function syncWebhook(token: string, phoneNumberId: string, wabaId: string | null, callbackUrl: string) {
+  const verify = process.env.WA_VERIFY_TOKEN ?? '';
+  const out: Record<string, any> = {};
+  const phone = await graph(token, `/${phoneNumberId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ webhook_configuration: { override_callback_uri: callbackUrl, verify_token: verify } }),
+  });
+  out.phone = { ok: phone.ok, status: phone.status, error: phone.json?.error?.message };
+  if (wabaId) {
+    const sub = await graph(token, `/${wabaId}/subscribed_apps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ override_callback_uri: callbackUrl, verify_token: verify }),
+    });
+    out.waba = { ok: sub.ok, status: sub.status, error: sub.json?.error?.message };
+  }
+  const cfg = await graph(token, `/${phoneNumberId}?fields=webhook_configuration`);
+  out.config = cfg.json?.webhook_configuration ?? null;
+  return out;
+}
