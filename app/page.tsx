@@ -1,18 +1,162 @@
 import Link from 'next/link';
 
+const CTA = '/login?modo=cadastro';
+
+const FEATURES = [
+  { i: '🍕', t: 'Meio a meio de verdade', d: 'O cliente escolhe o sabor, o tamanho e adiciona até 4 sabores. O preço segue o sabor mais caro, sem você calcular nada.' },
+  { i: '💠', t: 'Pix na hora do pedido', d: 'Conecte seu Mercado Pago e o cliente paga com QR Code ou copia e cola. O pedido só chega pago, confirmado automaticamente.' },
+  { i: '🛵', t: 'Taxa de entrega automática', d: 'Por bairro (com busca por CEP) ou por faixas de km a partir da sua loja. O cliente já vê o valor certo.' },
+  { i: '🔔', t: 'Painel com aviso sonoro', d: 'Pedido novo toca no painel. Aceite, prepare, saia pra entrega e finalize com um toque, direto do celular ou tablet.' },
+  { i: '📸', t: 'Cardápio pronto em minutos', d: 'Importe produtos por planilha e as fotos de uma vez só, pelo nome do arquivo. Sem cadastrar item por item.' },
+  { i: '🎟️', t: 'Cupons, horários e agendamento', d: 'Crie cupons de desconto, defina horário de funcionamento e deixe o cliente agendar o pedido.' },
+  { i: '🖨️', t: 'Impressão e relatórios', d: 'Imprima o pedido pra cozinha e acompanhe vendas, ticket médio e produtos mais pedidos.' },
+  { i: '🔗', t: 'Seu link, sua marca', d: 'Endereço próprio, tipo suapizzaria.comanda.bridgeatravessia.com.br, pra colocar na bio, no WhatsApp e no QR Code.' },
+];
+
+const STEPS = [
+  { n: '1', t: 'Crie sua loja', d: 'Cadastro rápido, sem cartão. Escolha o nome e o endereço do seu link.' },
+  { n: '2', t: 'Monte o cardápio', d: 'Cadastre ou importe seus produtos, fotos, tamanhos e adicionais.' },
+  { n: '3', t: 'Divulgue o link', d: 'Mande no WhatsApp e no Instagram. Os pedidos caem no seu painel.' },
+];
+
+const FAQ = [
+  { q: 'Preciso de computador?', a: 'Não. O painel e a loja funcionam no celular e no tablet, direto no navegador. Nada pra instalar.' },
+  { q: 'O cliente precisa baixar um app?', a: 'Não. Ele abre o seu link, escolhe e pede. Simples como mandar uma mensagem.' },
+  { q: 'Como recebo o dinheiro do Pix?', a: 'Direto na sua conta do Mercado Pago. O Comanda não segura o seu dinheiro. Você também pode aceitar pagamento na entrega.' },
+  { q: 'Serve só pra pizzaria?', a: 'Serve para pizzaria, padaria, lanchonete, hamburgueria, açaí, marmitaria e qualquer delivery com cardápio.' },
+  { q: 'Quanto custa?', a: 'Os planos serão divulgados em breve. Quem criar a loja agora já acompanha o lançamento.' },
+  { q: 'Vai ter atendente no WhatsApp?', a: 'Está no nosso roteiro: um atendente com inteligência artificial que responde clientes e anota pedidos.' },
+];
+
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 px-6 text-center">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="Comanda" width={120} height={120} className="drop-shadow-lg" />
-      <div>
-        <h1 className="text-4xl font-extrabold tracking-tight">Comanda</h1>
-        <p className="mt-2 text-ink/70">Seu cardápio, seus pedidos e seu atendimento no WhatsApp, em um só lugar.</p>
-      </div>
-      <div className="flex w-full flex-col gap-3">
-        <Link href="/login?modo=cadastro" className="btn-primary">Criar minha loja</Link>
-        <Link href="/login" className="btn-ghost">Já tenho conta</Link>
-      </div>
+    <main className="overflow-x-hidden">
+      {/* topo */}
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+        <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="" width={36} height={36} />
+          <span className="font-display text-xl font-extrabold tracking-tight">Comanda</span>
+        </div>
+        <nav className="flex items-center gap-2">
+          <Link href="/login" className="btn-ghost btn-sm">Entrar</Link>
+          <Link href={CTA} className="btn-primary btn-sm hidden sm:inline-flex">Criar minha loja</Link>
+        </nav>
+      </header>
+
+      {/* hero */}
+      <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-8 md:grid-cols-2 md:pt-14">
+        <div>
+          <span className="chip bg-brand-sun/40 text-ink">Cardápio digital + pedidos no WhatsApp</span>
+          <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+            Seu delivery com <span className="text-brand">link próprio</span>, sem pagar comissão por pedido.
+          </h1>
+          <p className="mt-5 max-w-xl text-lg text-ink/70">
+            Cardápio online, Pix automático, taxa de entrega por bairro ou km e painel de pedidos com aviso sonoro. Tudo no seu nome, pronto pra divulgar.
+          </p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <Link href={CTA} className="btn-primary text-lg">Criar minha loja</Link>
+            <a href="#como-funciona" className="btn-ghost text-lg">Ver como funciona</a>
+          </div>
+          <p className="mt-3 text-sm text-ink/60">Sem cartão de crédito pra começar.</p>
+        </div>
+
+        {/* mock celular */}
+        <div className="relative mx-auto w-full max-w-xs">
+          <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-br from-brand-sun/60 to-brand/30 blur-2xl" />
+          <div className="rounded-[2.2rem] border-[6px] border-ink bg-white p-3 shadow-card">
+            <div className="rounded-2xl bg-cream p-3">
+              <p className="text-xs font-semibold text-ink/60">Pizzaria do Rodrigo</p>
+              <p className="font-display text-lg font-extrabold">Escolha seu sabor</p>
+              <div className="mt-3 space-y-2">
+                {[['Calabresa', 'R$ 42,00'], ['Frango c/ Catupiry', 'R$ 48,00'], ['Quatro Queijos', 'R$ 52,00']].map(([n, p]) => (
+                  <div key={n} className="flex items-center gap-3 rounded-xl bg-white p-2 shadow-card">
+                    <div className="grid h-12 w-12 place-items-center rounded-lg bg-sand text-2xl">🍕</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold leading-tight">{n}</p>
+                      <p className="text-xs text-ink/60">a partir de {p}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 rounded-xl bg-brand-sun/40 p-2 text-center text-xs font-semibold">+ Adicionar outro sabor (meio a meio)</div>
+              <div className="mt-3 rounded-full bg-brand py-2.5 text-center text-sm font-bold text-white">💠 Pagar com Pix</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* faixa de benefícios */}
+      <section className="bg-ink text-cream">
+        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-center sm:grid-cols-3">
+          {[['0%', 'de comissão por pedido'], ['Pix', 'confirmado automaticamente'], ['5 min', 'pra colocar a loja no ar']].map(([a, b]) => (
+            <div key={a}>
+              <p className="font-display text-4xl font-extrabold text-brand-sun">{a}</p>
+              <p className="text-sm text-cream/70">{b}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* recursos */}
+      <section className="mx-auto max-w-6xl px-5 py-16">
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Tudo que o seu delivery precisa</h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-ink/70">Feito pra quem vende por WhatsApp e quer parar de anotar pedido no braço.</p>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((f) => (
+            <div key={f.t} className="card p-5">
+              <div className="text-3xl">{f.i}</div>
+              <h3 className="mt-3 text-lg font-extrabold leading-tight">{f.t}</h3>
+              <p className="mt-2 text-sm text-ink/70">{f.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* como funciona */}
+      <section id="como-funciona" className="bg-sand/50">
+        <div className="mx-auto max-w-6xl px-5 py-16">
+          <h2 className="text-center font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Como funciona</h2>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {STEPS.map((s) => (
+              <div key={s.n} className="card p-6">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-brand font-display text-lg font-extrabold text-white">{s.n}</div>
+                <h3 className="mt-4 text-xl font-extrabold">{s.t}</h3>
+                <p className="mt-1 text-ink/70">{s.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* faq */}
+      <section className="mx-auto max-w-3xl px-5 py-16">
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Perguntas frequentes</h2>
+        <div className="mt-8 space-y-3">
+          {FAQ.map((f) => (
+            <details key={f.q} className="card group p-4">
+              <summary className="cursor-pointer list-none font-bold marker:hidden">
+                <span className="mr-2 text-brand">＋</span>{f.q}
+              </summary>
+              <p className="mt-2 text-ink/70">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      {/* cta final */}
+      <section className="mx-auto max-w-4xl px-5 pb-16">
+        <div className="rounded-3xl bg-gradient-to-br from-brand to-brand-dark p-8 text-center text-white shadow-card sm:p-12">
+          <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Pronto pra vender sem intermediário?</h2>
+          <p className="mx-auto mt-3 max-w-xl text-white/85">Crie sua loja agora e receba o primeiro pedido pelo seu próprio link.</p>
+          <Link href={CTA} className="btn-sun mt-6 text-lg">Criar minha loja</Link>
+        </div>
+      </section>
+
+      <footer className="border-t border-sand py-8 text-center text-sm text-ink/60">
+        <p>© {new Date().getFullYear()} Comanda · um produto <strong>Grupo Bridge</strong></p>
+        <p className="mt-1"><Link href="/login" className="underline">Entrar no painel</Link></p>
+      </footer>
     </main>
   );
 }
