@@ -40,7 +40,7 @@ export default function Privacidade() {
         </section>
         <section>
           <h2 className="font-bold text-ink">Contato</h2>
-          <p>contato@bridgeatravessia.com.br</p>
+          <p>comandagrupobridge@gmail.com</p>
         </section>
       </div>
     </main>
