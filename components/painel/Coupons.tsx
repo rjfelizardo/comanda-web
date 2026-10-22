@@ -6,7 +6,7 @@ import { brl } from '@/lib/format';
 
 type Coupon = {
   id: string; code: string; kind: 'percent' | 'fixed' | 'free_delivery'; value: number; min_order: number;
-  max_uses: number | null; uses_count: number; once_per_phone: boolean; expires_at: string | null; is_active: boolean;
+  max_uses: number | null; uses_count: number; once_per_phone: boolean; expires_at: string | null; is_active: boolean; show_public?: boolean;
 };
 
 const num = (s: string) => {
@@ -26,6 +26,7 @@ export default function Coupons({ businessId, canEdit }: { businessId: string; c
   const [maxUses, setMaxUses] = useState('');
   const [expires, setExpires] = useState('');
   const [once, setOnce] = useState(true);
+  const [pub, setPub] = useState(true);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -47,10 +48,13 @@ export default function Coupons({ businessId, canEdit }: { businessId: string; c
     const mu = maxUses.trim() === '' ? null : parseInt(maxUses, 10);
     if (mu !== null && (!Number.isInteger(mu) || mu < 1)) return setErr('Limite de usos inválido.');
     setBusy(true);
-    const { error } = await supabaseBrowser().from('coupons').insert({
+    const row = {
       business_id: businessId, code: c, kind, value: v, min_order: mo, max_uses: mu, once_per_phone: once,
       expires_at: expires ? new Date(expires + 'T23:59:59').toISOString() : null,
-    });
+    };
+    let { error } = await supabaseBrowser().from('coupons').insert({ ...row, show_public: pub });
+    // Antes do SQL 06 a coluna show_public nao existe: cria sem ela.
+    if (error && error.code !== '23505') ({ error } = await supabaseBrowser().from('coupons').insert(row));
     setBusy(false);
     if (error) return setErr(error.code === '23505' ? 'Já existe um cupom com esse código.' : 'Não foi possível criar o cupom.');
     setCode(''); setMinOrder(''); setMaxUses(''); setExpires('');
@@ -59,6 +63,11 @@ export default function Coupons({ businessId, canEdit }: { businessId: string; c
 
   async function toggle(c: Coupon) {
     await supabaseBrowser().from('coupons').update({ is_active: !c.is_active }).eq('id', c.id);
+    load();
+  }
+  async function togglePublic(c: Coupon) {
+    const { error } = await supabaseBrowser().from('coupons').update({ show_public: !c.show_public }).eq('id', c.id);
+    if (error) setErr('Para mostrar cupons na loja, rode o SQL 06 no Supabase.');
     load();
   }
   async function remove(c: Coupon) {
@@ -110,6 +119,10 @@ export default function Coupons({ businessId, canEdit }: { businessId: string; c
             <input type="checkbox" className="h-5 w-5 accent-brand" checked={once} onChange={(e) => setOnce(e.target.checked)} />
             Cada cliente (WhatsApp) pode usar uma vez só
           </label>
+          <label className="flex items-center gap-3 text-sm font-medium">
+            <input type="checkbox" className="h-5 w-5 accent-brand" checked={pub} onChange={(e) => setPub(e.target.checked)} />
+            Mostrar na loja (aparece no botão 🎟 Cupons). Desmarque para um cupom secreto.
+          </label>
           {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{err}</p>}
           <button className="btn-primary" disabled={busy}>{busy ? 'Criando…' : 'Criar cupom'}</button>
         </form>
@@ -121,7 +134,7 @@ export default function Coupons({ businessId, canEdit }: { businessId: string; c
         {list?.map((c) => (
           <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div>
-              <p className="font-display text-lg font-extrabold tracking-wider">{c.code} {!c.is_active && <span className="chip bg-sand text-ink/60">Pausado</span>}</p>
+              <p className="font-display text-lg font-extrabold tracking-wider">{c.code} {!c.is_active && <span className="chip bg-sand text-ink/60">Pausado</span>} {c.show_public && <span className="chip bg-green-100 text-green-800">Na loja</span>}</p>
               <p className="text-sm text-ink/70">
                 {label(c)}
                 {c.min_order > 0 ? ` · acima de ${brl(c.min_order)}` : ''}
@@ -131,6 +144,7 @@ export default function Coupons({ businessId, canEdit }: { businessId: string; c
             </div>
             {canEdit && (
               <div className="flex gap-2 text-sm">
+                <button className="btn-ghost btn-sm" onClick={() => togglePublic(c)}>{c.show_public ? 'Ocultar da loja' : 'Mostrar na loja'}</button>
                 <button className="btn-ghost btn-sm" onClick={() => toggle(c)}>{c.is_active ? 'Pausar' : 'Ativar'}</button>
                 <button className="btn-danger btn-sm" onClick={() => remove(c)}>Apagar</button>
               </div>

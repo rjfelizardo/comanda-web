@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { supabaseAnon } from '@/lib/supabase/anon';
 import Store from '@/components/Store';
-import type { Business, Category, Group, Hours, Product, Zone } from '@/lib/types';
+import type { Business, Category, Group, Hours, Product, PublicCoupon, Zone } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -18,7 +18,7 @@ async function load(slug: string) {
   const biz: any = br.data;
   if (!biz) return null;
 
-  const [cats, prods, groups, opts, zones, open, hoursRes] = await Promise.all([
+  const [cats, prods, groups, opts, zones, open, hoursRes, couponsRes] = await Promise.all([
     db.from('categories').select('id,name,sort_order').eq('business_id', biz.id).order('sort_order').order('name'),
     (async () => {
       const q = (cols: string) =>
@@ -32,6 +32,7 @@ async function load(slug: string) {
     db.from('delivery_zones').select('id,name,fee,min_order,eta_min').eq('business_id', biz.id).order('name'),
     db.rpc('is_business_open', { p_business: biz.id }),
     db.from('business_hours').select('weekday,opens,closes').eq('business_id', biz.id),
+    db.rpc('public_coupons', { p_business: biz.id }),
   ]);
 
   const groupList = (groups.data ?? []) as any[];
@@ -62,6 +63,7 @@ async function load(slug: string) {
     products,
     zones: ((zones.data ?? []) as any[]).map((z) => ({ ...z, fee: Number(z.fee), min_order: Number(z.min_order) })) as Zone[],
     isOpen: open.data === true,
+    coupons: ((couponsRes.error ? [] : couponsRes.data ?? []) as any[]).map((c) => ({ ...c, value: Number(c.value), min_order: Number(c.min_order) })) as PublicCoupon[],
     hours: ((hoursRes.data ?? []) as any[]).map((h) => ({ weekday: h.weekday, opens: String(h.opens).slice(0, 5), closes: String(h.closes).slice(0, 5) })) as Hours[],
   };
 }

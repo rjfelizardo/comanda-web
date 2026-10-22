@@ -19,3 +19,4 @@ export type CartLine = {
   key: string; product_id: string; name: string; unit_price: number; quantity: number;
   option_ids: string[]; option_labels: string[]; notes: string; half_product_id?: string | null;
 };
+export type PublicCoupon = { code: string; kind: 'percent' | 'fixed' | 'free_delivery'; value: number; min_order: number; expires_at: string | null; uses_left: number | null };

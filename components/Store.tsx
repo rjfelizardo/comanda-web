@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { brl, onlyDigits } from '@/lib/format';
 import MyOrders, { saveEntry } from '@/components/MyOrders';
 import { daySlots, scheduleDays } from '@/lib/slots';
-import type { Business, CartLine, Category, Hours, Product, Zone } from '@/lib/types';
+import { couponRule, couponTitle } from '@/lib/coupons';
+import type { Business, CartLine, Category, Hours, Product, PublicCoupon, Zone } from '@/lib/types';
 
 type Props = {
   business: Business;
@@ -13,9 +14,10 @@ type Props = {
   zones: Zone[];
   isOpen: boolean;
   hours: Hours[];
+  coupons?: PublicCoupon[];
 };
 
-export default function Store({ business, categories, products, zones, isOpen, hours }: Props) {
+export default function Store({ business, categories, products, zones, isOpen, hours, coupons = [] }: Props) {
   const storageKey = `comanda-cart-${business.id}`;
   const [cart, setCart] = useState<CartLine[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -26,6 +28,8 @@ export default function Store({ business, categories, products, zones, isOpen, h
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [feeOpen, setFeeOpen] = useState(false);
+  const [couponsOpen, setCouponsOpen] = useState(false);
+  const [toast, setToast] = useState('');
   const [myZoneId, setMyZoneId] = useState('');
   useEffect(() => {
     try { setMyZoneId(localStorage.getItem(`comanda-zona-${business.id}`) || ''); } catch {}
@@ -130,7 +134,10 @@ export default function Store({ business, categories, products, zones, isOpen, h
             </div>
           </div>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {coupons.length > 0 && (
+            <button onClick={() => setCouponsOpen(true)} className="btn-primary btn-sm w-full">🎟 Cupons ({coupons.length})</button>
+          )}
           {zones.length > 0 && business.accepts_delivery ? (
             <button onClick={() => setFeeOpen(true)} className="btn-ghost btn-sm w-full">
               📍 {myZone ? `${myZone.name}: ${myZone.fee > 0 ? brl(myZone.fee) : 'entrega grátis'}${myZone.eta_min ? ` · ~${myZone.eta_min} min` : ''}` : 'Calcular taxa e tempo de entrega'}
@@ -241,6 +248,37 @@ export default function Store({ business, categories, products, zones, isOpen, h
         />
       )}
 
+      {couponsOpen && (
+        <Sheet title="Cupons da loja" onClose={() => setCouponsOpen(false)}>
+          <div className="grid gap-3">
+            {coupons.map((c) => (
+              <div key={c.code} className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-brand p-3">
+                <div className="min-w-0">
+                  <p className="font-display text-lg font-extrabold tracking-wider">{c.code}</p>
+                  <p className="text-sm font-semibold">{couponTitle(c)}</p>
+                  {couponRule(c) && <p className="text-xs text-ink/60">{couponRule(c)}</p>}
+                </div>
+                <button
+                  className="btn-primary btn-sm shrink-0"
+                  onClick={() => {
+                    try { localStorage.setItem(`comanda-cupom-${business.id}`, c.code); } catch {}
+                    setCouponsOpen(false);
+                    setToast(`Cupom ${c.code} guardado. Ele será aplicado no seu carrinho.`);
+                    setTimeout(() => setToast(''), 4000);
+                  }}
+                >
+                  Usar
+                </button>
+              </div>
+            ))}
+          </div>
+        </Sheet>
+      )}
+
+      {toast && (
+        <div role="status" className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-md rounded-xl bg-ink px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">{toast}</div>
+      )}
+
       {feeOpen && (
         <Sheet title="Taxa e tempo de entrega" onClose={() => setFeeOpen(false)}>
           <p className="mb-3 text-sm text-ink/70">Escolha seu bairro ou região para ver a taxa e o tempo estimado. Ficamos com essa escolha para o seu pedido.</p>
@@ -266,6 +304,7 @@ export default function Store({ business, categories, products, zones, isOpen, h
           business={business}
           zones={zones}
           hours={hours}
+          coupons={coupons}
           cart={cart}
           setCart={setCart}
           isOpen={isOpen}
@@ -419,11 +458,12 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
 
 /* ---------- Carrinho + finalizar ---------- */
 function Checkout({
-  business, zones, hours, cart, setCart, isOpen, onClose, onDone,
+  business, zones, hours, coupons, cart, setCart, isOpen, onClose, onDone,
 }: {
   business: Business;
   zones: Zone[];
   hours: Hours[];
+  coupons: PublicCoupon[];
   cart: CartLine[];
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
   isOpen: boolean;
@@ -496,6 +536,14 @@ function Checkout({
       else { setCoupon(null); setCouponMsg(d.error || 'Cupom inválido.'); }
     } catch { setCouponMsg('Sem conexão. Tente novamente.'); }
   }
+  useEffect(() => {
+    // cupom escolhido na vitrine ("Usar") ja entra aplicado
+    try {
+      const saved = localStorage.getItem(`comanda-cupom-${business.id}`);
+      if (saved) { setCouponInput(saved); checkCoupon(saved, true); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Se o carrinho/entrega mudar, confere o cupom de novo (o desconto pode mudar).
   useEffect(() => {
     if (coupon) checkCoupon(coupon.code, true);
@@ -698,6 +746,15 @@ function Checkout({
               <button type="button" className="btn-ghost btn-sm shrink-0" disabled={!couponInput.trim()} onClick={() => checkCoupon(couponInput)}>Aplicar</button>
             )}
           </div>
+          {!coupon && coupons.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {coupons.map((c) => (
+                <button key={c.code} type="button" onClick={() => { setCouponInput(c.code); checkCoupon(c.code); }} className="rounded-full border border-dashed border-brand px-3 py-1 text-xs font-bold">
+                  🎟 {c.code} · {couponTitle(c)}
+                </button>
+              ))}
+            </div>
+          )}
           {coupon && <p className="mt-1 text-sm font-semibold text-green-700">Cupom {coupon.code} aplicado: − {brl(coupon.discount)}</p>}
           {couponMsg && <p className="mt-1 text-sm text-red-700">{couponMsg}</p>}
         </div>
