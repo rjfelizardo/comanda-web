@@ -239,7 +239,7 @@ export default function Store({ business, categories, products, zones, isOpen, h
       {picked && (
         <ProductSheet
           product={picked}
-          halves={picked.allow_half ? products.filter((p) => p.allow_half && p.id !== picked.id && p.category_id === picked.category_id && p.groups.length > 0) : []}
+          halves={picked.allow_half ? products.filter((p) => p.allow_half && p.id !== picked.id && p.groups.length > 0) : []}
           onClose={() => setPicked(null)}
           onAdd={(l) => {
             addLine(l);
