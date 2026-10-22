@@ -3,7 +3,6 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { createOrder } from '@/lib/placeOrder';
 import { deliveryMode, quoteDelivery, QUOTE_MESSAGES } from '@/lib/deliveryQuote';
 import { brl, normalizePhone, WEEKDAYS } from '@/lib/format';
-import { storeUrl } from '@/lib/storeUrl';
 
 export type Msg = { role: 'user' | 'assistant'; content: any };
 export type AgentResult = { reply: string; extra: string[]; handoff: boolean; history: Msg[] };
@@ -130,7 +129,7 @@ export async function runAgent(opts: {
   const mode = await deliveryMode(db, biz);
   const open = (await db.rpc('is_business_open', { p_business: biz })).data === true;
   const pixOk = (await db.rpc('has_online_payment', { p_business: biz })).data === true;
-  const link = b?.slug ? storeUrl(b.slug) : '';
+  const link = b?.slug ? `https://${b.slug}.comanda.bridgeatravessia.com.br` : '';
   const now = new Date(Date.now() - 3 * 3600000);
 
   const system = `Você é o atendente virtual da loja "${b?.name ?? 'loja'}" no WhatsApp. Atende clientes de delivery em português do Brasil, com simpatia e objetividade.
