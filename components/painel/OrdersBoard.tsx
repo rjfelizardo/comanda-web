@@ -21,6 +21,7 @@ export default function OrdersBoard({ businessId }: { businessId: string }) {
   const [loading, setLoading] = useState(true);
   const known = useRef<Set<string>>(new Set());
   const first = useRef(true);
+  const [soundOn, setSoundOn] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = supabaseBrowser();
@@ -87,13 +88,41 @@ export default function OrdersBoard({ businessId }: { businessId: string }) {
     setBusyId('');
   }
 
+  useEffect(() => {
+    try { if (localStorage.getItem('comanda-sound') === '1') setSoundOn(true); } catch {}
+    // O navegador so libera o som depois de um toque na pagina: libera no primeiro toque.
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
+
+  const novosCount = orders.filter((o) => o.status === 'pending_approval').length;
+  useEffect(() => {
+    // Enquanto houver pedido novo sem resposta, repete o aviso a cada 10s.
+    if (!soundOn || novosCount === 0) return;
+    const t = setInterval(beep, 10000);
+    return () => clearInterval(t);
+  }, [soundOn, novosCount]);
+
+  function toggleSound() {
+    const next = !soundOn;
+    setSoundOn(next);
+    try { localStorage.setItem('comanda-sound', next ? '1' : '0'); } catch {}
+    if (next) { unlockAudio(); beep(); }
+  }
+
   const shown = orders.filter((o) => (tab === 'active' ? ACTIVE.includes(o.status) : !ACTIVE.includes(o.status)));
   const novos = orders.filter((o) => o.status === 'pending_approval').length;
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold">Pedidos</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold">Pedidos</h1>
+          <button onClick={toggleSound} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${soundOn ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            {soundOn ? '🔔 Som ligado' : '🔇 Ativar som'}
+          </button>
+        </div>
         <div className="flex rounded-full bg-sand p-1 text-sm font-semibold">
           <button onClick={() => setTab('active')} className={`rounded-full px-4 py-1.5 ${tab === 'active' ? 'bg-white shadow-card' : 'text-ink/60'}`}>
             Em andamento{novos > 0 && <span className="ml-1.5 rounded-full bg-brand px-1.5 text-xs text-white">{novos}</span>}
@@ -205,19 +234,34 @@ function badge(s: string) {
   return 'bg-brand-sun/40 text-ink';
 }
 
-function beep() {
+let audioCtx: AudioContext | null = null;
+function unlockAudio() {
   try {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new Ctx();
-    [0, 0.25].forEach((t) => {
+    if (!audioCtx) audioCtx = new Ctx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx.state !== 'closed';
+  } catch {
+    return false;
+  }
+}
+
+function beep() {
+  try {
+    if (!unlockAudio() || !audioCtx) return;
+    const ctx = audioCtx;
+    [0, 0.3, 0.6].forEach((t, i) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
-      o.frequency.value = 880;
+      o.type = 'square';
+      o.frequency.value = i === 2 ? 1175 : 880;
       o.connect(g);
       g.connect(ctx.destination);
-      g.gain.setValueAtTime(0.15, ctx.currentTime + t);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.24);
       o.start(ctx.currentTime + t);
-      o.stop(ctx.currentTime + t + 0.18);
+      o.stop(ctx.currentTime + t + 0.26);
     });
   } catch {}
 }
