@@ -30,7 +30,8 @@ export async function geocodeText(q: string): Promise<LatLng | null> {
   if (cache.has(key)) return cache.get(key)!;
   let res: LatLng | null = null;
   try {
-    const g = process.env.GOOGLE_MAPS_API_KEY;
+    // Google so quando GEOCODER=google (e a chave existir); senao usa o mapa gratuito.
+    const g = process.env.GEOCODER === 'google' ? process.env.GOOGLE_MAPS_API_KEY : '';
     res = g ? await viaGoogle(q, g) : await viaNominatim(q);
   } catch {
     return null; // falha de rede nao fica em cache
