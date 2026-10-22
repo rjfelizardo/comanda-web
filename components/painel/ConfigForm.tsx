@@ -1,0 +1,197 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { supabaseBrowser } from '@/lib/supabase/client';
+import { uploadImage } from '@/lib/upload';
+import { brl, normalizePhone, WEEKDAYS } from '@/lib/format';
+
+type Day = { on: boolean; opens: string; closes: string };
+type Zone = { id: string; name: string; fee: number; min_order: number; eta_min: number | null; is_active: boolean };
+
+const num = (s: string) => {
+  const n = Number(String(s).replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
+};
+const hhmm = (t: string) => t.slice(0, 5);
+
+export default function ConfigForm({ businessId, canEdit }: { businessId: string; canEdit: boolean }) {
+  const [b, setB] = useState<any>(null);
+  const [days, setDays] = useState<Day[]>(WEEKDAYS.map(() => ({ on: false, opens: '18:00', closes: '23:00' })));
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [zName, setZName] = useState('');
+  const [zFee, setZFee] = useState('');
+
+  const load = useCallback(async () => {
+    const s = supabaseBrowser();
+    const [bi, hs, zs] = await Promise.all([
+      s.from('businesses').select('*').eq('id', businessId).single(),
+      s.from('business_hours').select('weekday,opens,closes').eq('business_id', businessId),
+      s.from('delivery_zones').select('id,name,fee,min_order,eta_min,is_active').eq('business_id', businessId).order('name'),
+    ]);
+    const x: any = bi.data;
+    if (x) setB({ ...x, min_order: String(x.min_order).replace('.', ','), whatsapp_contact: x.whatsapp_contact ?? '' });
+    const d = WEEKDAYS.map(() => ({ on: false, opens: '18:00', closes: '23:00' }));
+    ((hs.data ?? []) as any[]).forEach((h) => { d[h.weekday] = { on: true, opens: hhmm(h.opens), closes: hhmm(h.closes) }; });
+    setDays(d);
+    setZones(((zs.data ?? []) as any[]).map((z) => ({ ...z, fee: Number(z.fee), min_order: Number(z.min_order) })));
+  }, [businessId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (!b) return <p className="py-10 text-center text-ink/50">Carregando…</p>;
+  const set = (k: string, v: any) => setB((p: any) => ({ ...p, [k]: v }));
+  const siteUrl = typeof window !== 'undefined' ? `${location.origin}/${b.slug}` : `/${b.slug}`;
+
+  async function img(kind: 'logo_url' | 'banner_url', file?: File) {
+    if (!file) return;
+    setBusy(true); setErr('');
+    try { set(kind, await uploadImage(businessId, file)); } catch { setErr('Não foi possível enviar a imagem.'); }
+    setBusy(false);
+  }
+
+  async function save() {
+    setErr(''); setMsg('');
+    const min = b.min_order === '' ? 0 : num(b.min_order);
+    if (b.name.trim().length < 2) return setErr('Informe o nome do negócio.');
+    if (Number.isNaN(min)) return setErr('Pedido mínimo inválido.');
+    const wa = b.whatsapp_contact ? normalizePhone(b.whatsapp_contact) : null;
+    if (wa && !/^[0-9]{10,15}$/.test(wa)) return setErr('WhatsApp inválido. Use DDD + número.');
+    for (let i = 0; i < 7; i++) if (days[i].on && days[i].opens === days[i].closes) return setErr(`${WEEKDAYS[i]}: abertura e fechamento não podem ser iguais.`);
+    setBusy(true);
+    const s = supabaseBrowser();
+    const r = await s.from('businesses').update({
+      name: b.name.trim(), description: b.description?.trim() || null, logo_url: b.logo_url || null, banner_url: b.banner_url || null,
+      whatsapp_contact: wa, address_text: b.address_text?.trim() || null, city: b.city?.trim() || null, state: b.state?.trim() || null,
+      accepts_delivery: !!b.accepts_delivery, accepts_pickup: !!b.accepts_pickup, accept_when_closed: !!b.accept_when_closed,
+      min_order: min, prep_time_min: Math.max(1, parseInt(b.prep_time_min, 10) || 40),
+    }).eq('id', businessId);
+    if (r.error) { setBusy(false); return setErr('Não foi possível salvar.'); }
+    await s.from('business_hours').delete().eq('business_id', businessId);
+    const rows = days.map((d, i) => ({ d, i })).filter(({ d }) => d.on).map(({ d, i }) => ({ business_id: businessId, weekday: i, opens: d.opens, closes: d.closes }));
+    if (rows.length) {
+      const h = await s.from('business_hours').insert(rows);
+      if (h.error) { setBusy(false); return setErr('Dados salvos, mas os horários falharam. Tente de novo.'); }
+    }
+    setBusy(false);
+    setMsg('Salvo!');
+    load();
+  }
+
+  async function addZone() {
+    const fee = zFee.trim() === '' ? 0 : num(zFee);
+    if (!zName.trim() || Number.isNaN(fee)) return setErr('Informe o nome da região e uma taxa válida.');
+    const { error } = await supabaseBrowser().from('delivery_zones').insert({ business_id: businessId, name: zName.trim(), fee });
+    if (error) return setErr(error.code === '23505' ? 'Já existe uma região com esse nome.' : 'Não foi possível adicionar.');
+    setZName(''); setZFee(''); setErr('');
+    load();
+  }
+  async function delZone(id: string) {
+    await supabaseBrowser().from('delivery_zones').delete().eq('id', id);
+    load();
+  }
+
+  const dis = !canEdit;
+
+  return (
+    <div className="grid gap-6 pb-10">
+      <h1 className="text-2xl font-extrabold">Configurações</h1>
+
+      <section className="card p-4">
+        <h2 className="font-bold">Link da sua loja</h2>
+        <p className="mt-1 break-all rounded-xl bg-sand/60 p-3 text-sm">{siteUrl}</p>
+        <button className="btn-ghost btn-sm mt-2" onClick={() => { navigator.clipboard?.writeText(siteUrl); setMsg('Link copiado!'); }}>Copiar link</button>
+      </section>
+
+      <section className="card grid gap-4 p-4">
+        <h2 className="font-bold">Seu negócio</h2>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
+            {b.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={b.logo_url} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+            ) : <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sand">Logo</div>}
+            <label className="btn-ghost btn-sm cursor-pointer">Logo<input disabled={dis} type="file" accept="image/*" className="hidden" onChange={(e) => img('logo_url', e.target.files?.[0])} /></label>
+          </div>
+          <div className="flex items-center gap-3">
+            {b.banner_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={b.banner_url} alt="" className="h-16 w-28 rounded-xl object-cover" />
+            ) : <div className="flex h-16 w-28 items-center justify-center rounded-xl bg-sand">Capa</div>}
+            <label className="btn-ghost btn-sm cursor-pointer">Capa<input disabled={dis} type="file" accept="image/*" className="hidden" onChange={(e) => img('banner_url', e.target.files?.[0])} /></label>
+          </div>
+        </div>
+        <div><label className="label">Nome</label><input disabled={dis} className="input" value={b.name} maxLength={80} onChange={(e) => set('name', e.target.value)} /></div>
+        <div><label className="label">Descrição curta</label><textarea disabled={dis} className="input" rows={2} maxLength={500} value={b.description ?? ''} onChange={(e) => set('description', e.target.value)} /></div>
+        <div><label className="label">WhatsApp da loja (com DDD)</label><input disabled={dis} className="input" inputMode="tel" placeholder="(71) 99999-9999" value={b.whatsapp_contact} onChange={(e) => set('whatsapp_contact', e.target.value)} /></div>
+        <div><label className="label">Endereço</label><input disabled={dis} className="input" value={b.address_text ?? ''} onChange={(e) => set('address_text', e.target.value)} /></div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2"><label className="label">Cidade</label><input disabled={dis} className="input" value={b.city ?? ''} onChange={(e) => set('city', e.target.value)} /></div>
+          <div><label className="label">UF</label><input disabled={dis} className="input" maxLength={2} value={b.state ?? ''} onChange={(e) => set('state', e.target.value.toUpperCase())} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="label">Pedido mínimo (R$)</label><input disabled={dis} className="input" inputMode="decimal" value={b.min_order} onChange={(e) => set('min_order', e.target.value)} /></div>
+          <div><label className="label">Tempo de preparo (min)</label><input disabled={dis} className="input" inputMode="numeric" value={b.prep_time_min} onChange={(e) => set('prep_time_min', e.target.value)} /></div>
+        </div>
+        <div className="grid gap-2 text-sm font-medium">
+          {[['accepts_delivery', 'Aceito entregas'], ['accepts_pickup', 'Aceito retirada no balcão'], ['accept_when_closed', 'Aceitar pedidos mesmo fora do horário']].map(([k, l]) => (
+            <label key={k} className="flex items-center gap-3"><input disabled={dis} type="checkbox" className="h-5 w-5 accent-brand" checked={!!b[k]} onChange={(e) => set(k, e.target.checked)} />{l}</label>
+          ))}
+        </div>
+      </section>
+
+      <section className="card p-4">
+        <h2 className="font-bold">Horário de funcionamento</h2>
+        <p className="mb-3 text-sm text-ink/60">Sem nenhum dia marcado, a loja fica sempre aberta. Para fechar depois da meia-noite, use um fechamento menor que a abertura (ex.: 18:00 às 02:00).</p>
+        <div className="grid gap-2">
+          {days.map((d, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-3">
+              <label className="flex w-28 items-center gap-2 text-sm font-semibold">
+                <input disabled={dis} type="checkbox" className="h-5 w-5 accent-brand" checked={d.on} onChange={(e) => setDays((p) => p.map((x, j) => (j === i ? { ...x, on: e.target.checked } : x)))} />
+                {WEEKDAYS[i]}
+              </label>
+              {d.on && (
+                <>
+                  <input disabled={dis} type="time" className="input w-32" value={d.opens} onChange={(e) => setDays((p) => p.map((x, j) => (j === i ? { ...x, opens: e.target.value } : x)))} />
+                  <span className="text-sm text-ink/50">às</span>
+                  <input disabled={dis} type="time" className="input w-32" value={d.closes} onChange={(e) => setDays((p) => p.map((x, j) => (j === i ? { ...x, closes: e.target.value } : x)))} />
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {canEdit && (
+        <div className="sticky bottom-3 z-10 flex items-center gap-3">
+          <button className="btn-primary flex-1 shadow-lg" disabled={busy} onClick={save}>{busy ? 'Salvando…' : 'Salvar alterações'}</button>
+        </div>
+      )}
+      {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{err}</p>}
+      {msg && <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{msg}</p>}
+
+      <section className="card p-4">
+        <h2 className="font-bold">Regiões de entrega e taxas</h2>
+        <p className="mb-3 text-sm text-ink/60">Se você cadastrar regiões, o cliente precisa escolher uma na hora do pedido. Sem regiões, a entrega não tem taxa.</p>
+        <ul className="divide-y divide-sand text-sm">
+          {zones.map((z) => (
+            <li key={z.id} className="flex items-center justify-between py-2">
+              <span className="font-medium">{z.name} <span className="text-ink/60">— {z.fee > 0 ? brl(z.fee) : 'Grátis'}</span></span>
+              {canEdit && <button onClick={() => delZone(z.id)} className="text-red-700 underline">Apagar</button>}
+            </li>
+          ))}
+          {zones.length === 0 && <li className="py-2 text-ink/60">Nenhuma região cadastrada.</li>}
+        </ul>
+        {canEdit && (
+          <div className="mt-3 flex gap-2">
+            <input className="input" placeholder="Bairro ou região" value={zName} onChange={(e) => setZName(e.target.value)} maxLength={80} />
+            <input className="input max-w-[7rem]" placeholder="Taxa R$" inputMode="decimal" value={zFee} onChange={(e) => setZFee(e.target.value)} />
+            <button className="btn-ghost btn-sm shrink-0" onClick={addZone}>Adicionar</button>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

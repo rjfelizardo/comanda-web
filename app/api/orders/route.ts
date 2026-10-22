@@ -1,0 +1,106 @@
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { normalizePhone } from '@/lib/format';
+
+export const runtime = 'nodejs';
+
+// Limite simples por IP (por instancia). A defesa final contra abuso esta no banco (place_order).
+const hits = new Map<string, number[]>();
+function limited(ip: string) {
+  const now = Date.now();
+  const arr = (hits.get(ip) ?? []).filter((t) => now - t < 10 * 60 * 1000);
+  arr.push(now);
+  hits.set(ip, arr);
+  if (hits.size > 5000) hits.clear();
+  return arr.length > 6;
+}
+
+const MESSAGES: Record<string, string> = {
+  business_not_found: 'Loja não encontrada.',
+  invalid_phone: 'Telefone inválido. Use DDD + número.',
+  invalid_name: 'Informe seu nome.',
+  invalid_fulfillment: 'Escolha entrega ou retirada.',
+  delivery_not_accepted: 'Esta loja não faz entrega no momento.',
+  pickup_not_accepted: 'Esta loja não aceita retirada no momento.',
+  business_closed: 'A loja está fechada agora.',
+  invalid_items: 'Seu carrinho está vazio ou inválido.',
+  invalid_quantity: 'Quantidade inválida.',
+  invalid_product: 'Um item do carrinho não está mais disponível. Atualize a página.',
+  invalid_option: 'Uma opção escolhida não está mais disponível. Atualize a página.',
+  invalid_option_selection: 'Revise as opções obrigatórias dos itens.',
+  product_without_price: 'Item sem preço definido.',
+  address_required: 'Informe o endereço de entrega.',
+  invalid_zone: 'Região de entrega inválida.',
+  zone_required: 'Escolha a região de entrega.',
+  below_min_order: 'O pedido não atingiu o valor mínimo da loja.',
+  below_zone_min_order: 'O pedido não atingiu o mínimo para essa região.',
+  invalid_change: 'Valor do troco inválido.',
+  too_many_pending_orders: 'Você já tem pedidos aguardando. Aguarde a confirmação da loja.',
+  notes_too_long: 'Observação muito longa.',
+};
+
+export async function POST(req: Request) {
+  const ip = (req.headers.get('x-forwarded-for') ?? 'unknown').split(',')[0].trim();
+  if (limited(ip)) return NextResponse.json({ error: 'Muitas tentativas. Tente de novo em alguns minutos.' }, { status: 429 });
+
+  const raw = await req.text();
+  if (raw.length > 30_000) return NextResponse.json({ error: 'Pedido grande demais.' }, { status: 413 });
+
+  let b: any;
+  try {
+    b = JSON.parse(raw);
+  } catch {
+    return NextResponse.json({ error: 'Requisição inválida.' }, { status: 400 });
+  }
+
+  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const items = Array.isArray(b.items) ? b.items.slice(0, 40) : [];
+  const cleanItems = items.map((i: any) => ({
+    product_id: str(i?.product_id, 60),
+    quantity: Number.isInteger(i?.quantity) ? i.quantity : 0,
+    option_ids: Array.isArray(i?.option_ids) ? i.option_ids.slice(0, 30).map((x: unknown) => str(x, 60)) : [],
+    notes: str(i?.notes, 200),
+  }));
+
+  const fulfillment = b.fulfillment === 'pickup' ? 'pickup' : 'delivery';
+  const a = b.address ?? {};
+  const address =
+    fulfillment === 'delivery'
+      ? {
+          street: str(a.street, 120),
+          number: str(a.number, 20),
+          complement: str(a.complement, 80),
+          neighborhood: str(a.neighborhood, 80),
+          reference: str(a.reference, 120),
+        }
+      : null;
+
+  const change = Number(b.change_for);
+  try {
+    const db = supabaseAdmin();
+    const { data, error } = await db.rpc('place_order', {
+      p_business_id: str(b.business_id, 60),
+      p_customer_name: str(b.name, 80),
+      p_customer_phone: normalizePhone(str(b.phone, 30)),
+      p_fulfillment: fulfillment,
+      p_payment_method: 'on_delivery',
+      p_source: 'web',
+      p_address: address,
+      p_zone_id: str(b.zone_id, 60) || null,
+      p_notes: str(b.notes, 500) || null,
+      p_change_for: Number.isFinite(change) && change > 0 ? change : null,
+      p_items: cleanItems,
+    });
+    if (error) {
+      const code = (error.message || '').split(':')[0].trim();
+      const known = MESSAGES[code];
+      if (!known) console.error('place_order error', error.message);
+      return NextResponse.json({ error: known ?? 'Não foi possível enviar o pedido. Tente novamente.' }, { status: known ? 422 : 500 });
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return NextResponse.json({ code: row.code, total: Number(row.total) });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: 'Serviço indisponível no momento.' }, { status: 500 });
+  }
+}
