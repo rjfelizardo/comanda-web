@@ -12,7 +12,9 @@ export type Business = {
   id: string; slug: string; name: string; description: string | null; logo_url: string | null;
   banner_url: string | null; whatsapp_contact: string | null; address_text: string | null;
   accepts_delivery: boolean; accepts_pickup: boolean; min_order: number; prep_time_min: number;
+  accepts_scheduling?: boolean; schedule_min_minutes?: number; schedule_max_days?: number;
 };
+export type Hours = { weekday: number; opens: string; closes: string };
 export type CartLine = {
   key: string; product_id: string; name: string; unit_price: number; quantity: number;
   option_ids: string[]; option_labels: string[]; notes: string; half_product_id?: string | null;

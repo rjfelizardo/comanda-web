@@ -6,7 +6,7 @@ import { brl } from '@/lib/format';
 type Entry = { code: string; phone: string };
 type Order = {
   code: string; status: string; fulfillment: 'delivery' | 'pickup'; payment_method: string; payment_status: string;
-  total: number; created_at: string; items: { name: string; quantity: number; options: string[] }[];
+  total: number; created_at: string; scheduled_for?: string | null; items: { name: string; quantity: number; options: string[] }[];
 };
 
 export const ordersKey = (businessId: string) => `comanda-pedidos-${businessId}`;
@@ -126,6 +126,7 @@ export default function MyOrders({ businessId, whatsapp, onClose }: { businessId
                   </div>
                   <p className="font-bold">{brl(o.total)}</p>
                 </div>
+                {o.scheduled_for && <p className="mt-2 text-sm font-bold">🕒 Agendado para {new Date(o.scheduled_for).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>}
                 <p className={`mt-2 rounded-xl p-2 text-sm font-semibold ${dead ? 'bg-red-50 text-red-800' : 'bg-brand-sun/40'}`}>{HEADLINE[o.status] ?? o.status}</p>
                 {!dead && (
                   <ol className="mt-3 flex gap-1">

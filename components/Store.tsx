@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { brl, onlyDigits } from '@/lib/format';
 import MyOrders, { saveEntry } from '@/components/MyOrders';
-import type { Business, CartLine, Category, Product, Zone } from '@/lib/types';
+import { daySlots, scheduleDays } from '@/lib/slots';
+import type { Business, CartLine, Category, Hours, Product, Zone } from '@/lib/types';
 
 type Props = {
   business: Business;
@@ -11,9 +12,10 @@ type Props = {
   products: Product[];
   zones: Zone[];
   isOpen: boolean;
+  hours: Hours[];
 };
 
-export default function Store({ business, categories, products, zones, isOpen }: Props) {
+export default function Store({ business, categories, products, zones, isOpen, hours }: Props) {
   const storageKey = `comanda-cart-${business.id}`;
   const [cart, setCart] = useState<CartLine[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -263,6 +265,7 @@ export default function Store({ business, categories, products, zones, isOpen }:
         <Checkout
           business={business}
           zones={zones}
+          hours={hours}
           cart={cart}
           setCart={setCart}
           isOpen={isOpen}
@@ -416,10 +419,11 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
 
 /* ---------- Carrinho + finalizar ---------- */
 function Checkout({
-  business, zones, cart, setCart, isOpen, onClose, onDone,
+  business, zones, hours, cart, setCart, isOpen, onClose, onDone,
 }: {
   business: Business;
   zones: Zone[];
+  hours: Hours[];
   cart: CartLine[];
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
   isOpen: boolean;
@@ -445,7 +449,15 @@ function Checkout({
   const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [couponMsg, setCouponMsg] = useState('');
   const [scheduleOn, setScheduleOn] = useState(false);
-  const [scheduleAt, setScheduleAt] = useState('');
+  const [scheduleDay, setScheduleDay] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const canSchedule = !!business.accepts_scheduling;
+  const minMin = business.schedule_min_minutes ?? 30;
+  const maxDays = business.schedule_max_days ?? 7;
+  const sDays = useMemo(() => (canSchedule ? scheduleDays(hours, minMin, maxDays) : []), [canSchedule, hours, minMin, maxDays]);
+  const dayObj = sDays.find((d) => d.key === scheduleDay);
+  const sTimes = dayObj ? daySlots(dayObj.date, hours, new Date(Date.now() + minMin * 60000)) : [];
+  const scheduleAt = dayObj && scheduleTime ? `${scheduleDay}T${scheduleTime}` : '';
 
   useEffect(() => {
     try {
@@ -499,8 +511,8 @@ function Checkout({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!isOpen && !scheduleOn) return setError('A loja está fechada agora. Você pode agendar o pedido para mais tarde.');
-    if (scheduleOn && !scheduleAt) return setError('Escolha o dia e a hora do agendamento.');
+    if (!isOpen && !scheduleOn) return setError('A loja está fechada agora.');
+    if (scheduleOn && !scheduleAt) return setError('Escolha o dia e o horário do agendamento.');
     if (cart.length === 0) return setError('Seu carrinho está vazio.');
     if (name.trim().length < 2) return setError('Informe seu nome.');
     const digits = onlyDigits(phone);
@@ -644,18 +656,37 @@ function Checkout({
           <input id="obs2" className="input" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
-        <div className="rounded-2xl border border-sand p-3">
-          <label className="flex items-center gap-3 font-bold">
-            <input type="checkbox" className="h-5 w-5 accent-brand" checked={scheduleOn} onChange={(e) => setScheduleOn(e.target.checked)} />
-            🕒 Agendar para mais tarde
-          </label>
-          {scheduleOn && (
-            <div className="mt-2">
-              <input type="datetime-local" className="input" value={scheduleAt} min={toLocalInput(new Date(Date.now() + 30 * 60000))} max={toLocalInput(new Date(Date.now() + 7 * 86400000))} onChange={(e) => setScheduleAt(e.target.value)} />
-              <p className="mt-1 text-xs text-ink/60">A loja confirma o horário ao aceitar o pedido.</p>
-            </div>
-          )}
-        </div>
+        {canSchedule && (
+          <div className="rounded-2xl border border-sand p-3">
+            <label className="flex items-center gap-3 font-bold">
+              <input type="checkbox" className="h-5 w-5 accent-brand" checked={scheduleOn} onChange={(e) => setScheduleOn(e.target.checked)} />
+              🕒 Agendar para mais tarde
+            </label>
+            {scheduleOn && (
+              sDays.length === 0 ? (
+                <p className="mt-2 text-sm text-red-700">Não há horários disponíveis para agendar agora.</p>
+              ) : (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label" htmlFor="sdia">Dia</label>
+                    <select id="sdia" className="input" value={scheduleDay} onChange={(e) => { setScheduleDay(e.target.value); setScheduleTime(''); }}>
+                      <option value="">Escolha…</option>
+                      {sDays.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="shora">Horário</label>
+                    <select id="shora" className="input" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} disabled={!dayObj}>
+                      <option value="">Escolha…</option>
+                      {sTimes.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <p className="col-span-2 text-xs text-ink/60">Só aparecem horários em que a loja funciona. A loja confirma ao aceitar o pedido.</p>
+                </div>
+              )
+            )}
+          </div>
+        )}
 
         <div>
           <label className="label" htmlFor="cupom">Cupom de desconto</label>
@@ -687,11 +718,6 @@ function Checkout({
       </form>
     </Sheet>
   );
-}
-
-function toLocalInput(d: Date) {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function Success({ business, code, total, onTrack }: { business: Business; code: string; total: number; onTrack: () => void }) {

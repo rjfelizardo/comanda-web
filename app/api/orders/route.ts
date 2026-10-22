@@ -43,7 +43,9 @@ const MESSAGES: Record<string, string> = {
   coupon_exhausted: 'Este cupom já atingiu o limite de usos.',
   coupon_already_used: 'Você já usou este cupom.',
   coupon_no_delivery_fee: 'Este cupom é para entrega com taxa.',
-  invalid_schedule: 'Horário de agendamento inválido. Escolha entre 30 minutos e 7 dias a partir de agora.',
+  invalid_schedule: 'Horário de agendamento inválido. Escolha outro horário.',
+  scheduling_not_accepted: 'Esta loja não aceita pedidos agendados.',
+  schedule_outside_hours: 'A loja não funciona nesse horário. Escolha outro.',
   invalid_half: 'Combinação de meio a meio inválida.',
 };
 

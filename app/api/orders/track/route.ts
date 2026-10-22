@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     for (const [phone, codes] of Array.from(byPhone.entries())) {
       const { data } = await db
         .from('orders')
-        .select('id,code,status,fulfillment,payment_method,payment_status,total,created_at')
+        .select('id,code,status,fulfillment,payment_method,payment_status,total,created_at,scheduled_for')
         .eq('business_id', businessId)
         .eq('customer_phone', phone)
         .in('code', codes);

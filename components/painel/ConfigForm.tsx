@@ -66,12 +66,20 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
     for (let i = 0; i < 7; i++) if (days[i].on && days[i].opens === days[i].closes) return setErr(`${WEEKDAYS[i]}: abertura e fechamento não podem ser iguais.`);
     setBusy(true);
     const s = supabaseBrowser();
-    const r = await s.from('businesses').update({
+    const base = {
       name: b.name.trim(), description: b.description?.trim() || null, logo_url: b.logo_url || null, banner_url: b.banner_url || null,
       whatsapp_contact: wa, address_text: b.address_text?.trim() || null, city: b.city?.trim() || null, state: b.state?.trim() || null,
       accepts_delivery: !!b.accepts_delivery, accepts_pickup: !!b.accepts_pickup, accept_when_closed: !!b.accept_when_closed,
       min_order: min, prep_time_min: Math.max(1, parseInt(b.prep_time_min, 10) || 40),
-    }).eq('id', businessId);
+    };
+    const sched = {
+      accepts_scheduling: !!b.accepts_scheduling,
+      schedule_min_minutes: Math.min(1440, Math.max(10, parseInt(b.schedule_min_minutes, 10) || 30)),
+      schedule_max_days: Math.min(30, Math.max(1, parseInt(b.schedule_max_days, 10) || 7)),
+    };
+    let r = await s.from('businesses').update({ ...base, ...sched }).eq('id', businessId);
+    // Antes do SQL 05 as colunas de agendamento nao existem: salva o resto.
+    if (r.error && !/plan_required/.test(r.error.message)) r = await s.from('businesses').update(base).eq('id', businessId);
     if (r.error) { setBusy(false); return setErr(/plan_required/.test(r.error.message) ? 'Logo e fachada fazem parte do plano com personalização.' : 'Não foi possível salvar.'); }
     await s.from('business_hours').delete().eq('business_id', businessId);
     const rows = days.map((d, i) => ({ d, i })).filter(({ d }) => d.on).map(({ d, i }) => ({ business_id: businessId, weekday: i, opens: d.opens, closes: d.closes }));
@@ -170,6 +178,27 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
             <label key={k} className="flex items-center gap-3"><input disabled={dis} type="checkbox" className="h-5 w-5 accent-brand" checked={!!b[k]} onChange={(e) => set(k, e.target.checked)} />{l}</label>
           ))}
         </div>
+      </section>
+
+      <section className="card grid gap-3 p-4">
+        <h2 className="font-bold">Pedidos agendados</h2>
+        <label className="flex items-center gap-3 text-sm font-medium">
+          <input disabled={dis} type="checkbox" className="h-5 w-5 accent-brand" checked={!!b.accepts_scheduling} onChange={(e) => set('accepts_scheduling', e.target.checked)} />
+          Aceitar pedidos agendados (o cliente escolhe dia e horário)
+        </label>
+        {b.accepts_scheduling && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Antecedência mínima (min)</label>
+              <input disabled={dis} className="input" inputMode="numeric" value={b.schedule_min_minutes ?? 30} onChange={(e) => set('schedule_min_minutes', e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Agendar até (dias)</label>
+              <input disabled={dis} className="input" inputMode="numeric" value={b.schedule_max_days ?? 7} onChange={(e) => set('schedule_max_days', e.target.value)} />
+            </div>
+          </div>
+        )}
+        <p className="text-xs text-ink/60">O cliente só vê horários dentro do seu horário de funcionamento (abaixo). Sem horários cadastrados, valem 8h às 22h.</p>
       </section>
 
       <section className="card p-4">
