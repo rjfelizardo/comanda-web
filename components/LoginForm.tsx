@@ -62,7 +62,12 @@ export default function LoginForm() {
     const { error } = await supabaseRecovery().auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${location.origin}/nova-senha`,
     });
-    if (error) setError('Não foi possível enviar o e-mail agora.');
+    if (error) {
+      const m = String(error.message ?? '');
+      if (/rate limit|seconds|too many/i.test(m)) setError('Você pediu e-mails demais em pouco tempo. Aguarde cerca de 1 hora ou use outro caminho.');
+      else if (/not authorized/i.test(m)) setError('Este e-mail não está autorizado a receber mensagens ainda.');
+      else setError('Não foi possível enviar o e-mail agora.');
+    }
     else setInfo('Se esse e-mail tiver conta, enviamos um link para criar nova senha.');
   }
 
