@@ -60,18 +60,10 @@ export default function Home() {
           <p className="mt-3 text-sm text-ink/60">Sem cartão de crédito pra começar.</p>
         </div>
 
-        {/* celulares com a tela real */}
-        <div className="relative mx-auto h-[26rem] w-full max-w-sm sm:h-[32rem]">
-          <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-brand-sun/70 to-brand/30 blur-3xl" />
-          {[
-            { src: '/app-loja-2.jpg', cls: 'left-0 top-8 -rotate-6 z-0' },
-            { src: '/app-loja-1.jpg', cls: 'right-0 top-0 rotate-3 z-10' },
-          ].map((p) => (
-            <div key={p.src} className={`absolute w-[52%] overflow-hidden rounded-[1.8rem] border-[5px] border-ink bg-ink shadow-2xl ${p.cls}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.src} alt="Loja no Comanda" className="block w-full" />
-            </div>
-          ))}
+        {/* imagem principal */}
+        <div className="relative mx-auto w-full max-w-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/hero-app.jpg" alt="Loja da Petti Pizzaria no Comanda, em dois celulares" className="block w-full rounded-3xl shadow-2xl" width={1400} height={933} fetchPriority="high" />
         </div>
       </section>
 
