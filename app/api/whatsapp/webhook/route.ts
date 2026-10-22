@@ -53,9 +53,14 @@ export async function POST(req: Request) {
           if (!account.bot_enabled) continue;
 
           const name = String((v.contacts ?? []).find((c: any) => c?.wa_id === from)?.profile?.name ?? '').slice(0, 80);
-          const conv = await db.from('wa_conversations').upsert({ business_id: account.business_id, wa_phone: from, ...(name ? { customer_name: name } : {}), last_inbound_at: new Date().toISOString() }, { onConflict: 'business_id,wa_phone' }).select('id,history,bot_paused,customer_name').single();
+          const conv = await db.from('wa_conversations').upsert({ business_id: account.business_id, wa_phone: from, ...(name ? { customer_name: name } : {}), last_inbound_at: new Date().toISOString() }, { onConflict: 'business_id,wa_phone' }).select('id,history,bot_paused,customer_name,updated_at').single();
           if (conv.error || !conv.data) { console.error('wa conv', conv.error?.message); continue; }
-          if (conv.data.bot_paused) continue; // um humano assumiu
+          // Um humano assumiu; se ninguem respondeu em 1 hora, o atendente volta sozinho.
+          if (conv.data.bot_paused) {
+            const stale = Date.now() - Date.parse(String(conv.data.updated_at ?? '')) > 60 * 60 * 1000;
+            if (!stale) continue;
+            await db.from('wa_conversations').update({ bot_paused: false }).eq('id', conv.data.id);
+          }
 
           await markRead(account.token, pid, id);
 
