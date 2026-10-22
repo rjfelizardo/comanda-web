@@ -576,6 +576,16 @@ function FlavorPicker({
   );
 }
 
+/* ---------- Taxa por endereço (CEP -> bairro -> região) ---------- */
+const normTxt = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+// O nome da região pode listar vários bairros separados por vírgula, barra ou " e " (ex.: "Pituba, Itaigara").
+function matchZone(zones: Zone[], bairro: string): Zone | undefined {
+  const b = normTxt(bairro);
+  if (b.length < 3) return undefined;
+  const parts = (z: Zone) => z.name.split(/[,;/|]| e /i).map(normTxt).filter(Boolean);
+  return zones.find((z) => parts(z).some((x) => x === b)) ?? zones.find((z) => parts(z).some((x) => x.length >= 3 && (x.includes(b) || b.includes(x))));
+}
+
 /* ---------- Carrinho + finalizar ---------- */
 function Checkout({
   business, zones, hours, coupons, cart, setCart, isOpen, onClose, onDone,
@@ -601,6 +611,8 @@ function Checkout({
   const [complement, setComplement] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [reference, setReference] = useState('');
+  const [cep, setCep] = useState('');
+  const [cepMsg, setCepMsg] = useState('');
   const [notes, setNotes] = useState('');
   const [change, setChange] = useState('');
   const [busy, setBusy] = useState(false);
@@ -636,6 +648,31 @@ function Checkout({
       if (s.neighborhood) setNeighborhood(s.neighborhood);
     } catch {}
   }, []);
+
+  // bairro digitado ou vindo do CEP -> escolhe a região (e a taxa) automaticamente
+  useEffect(() => {
+    if (!neighborhood.trim() || zones.length === 0) return;
+    const z = matchZone(zones, neighborhood);
+    if (z) { setZoneId(z.id); setCepMsg(''); }
+  }, [neighborhood, zones]);
+
+  async function lookupCep(v: string) {
+    const d = onlyDigits(v).slice(0, 8);
+    setCep(d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d);
+    if (d.length !== 8) { setCepMsg(''); return; }
+    setCepMsg('Buscando endereço…');
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${d}/json/`);
+      const j = await res.json();
+      if (j.erro) { setCepMsg('CEP não encontrado. Preencha o endereço manualmente.'); return; }
+      if (j.logradouro) setStreet(j.logradouro);
+      if (j.bairro) setNeighborhood(j.bairro);
+      const z = j.bairro ? matchZone(zones, j.bairro) : undefined;
+      setCepMsg(z ? '' : zones.length > 0 ? `Não encontramos a taxa para ${j.bairro || 'esse bairro'}. Escolha a região abaixo.` : '');
+    } catch {
+      setCepMsg('Não foi possível buscar o CEP. Preencha manualmente.');
+    }
+  }
 
   const zone = zones.find((z) => z.id === zoneId);
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.quantity, 0);
@@ -774,6 +811,11 @@ function Checkout({
 
         {fulfillment === 'delivery' && (
           <>
+            <div>
+              <label className="label" htmlFor="cep">CEP</label>
+              <input id="cep" className="input" inputMode="numeric" placeholder="00000-000" value={cep} onChange={(e) => lookupCep(e.target.value)} autoComplete="postal-code" />
+              {cepMsg && <p className="mt-1 text-sm text-ink/70">{cepMsg}</p>}
+            </div>
             {zones.length > 0 && (
               <div>
                 <label className="label" htmlFor="zona">Região de entrega</label>

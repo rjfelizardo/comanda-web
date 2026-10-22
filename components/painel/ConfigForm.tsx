@@ -245,7 +245,7 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
         </ul>
         {canEdit && (
           <div className="mt-3 flex gap-2">
-            <input className="input" placeholder="Bairro ou região" value={zName} onChange={(e) => setZName(e.target.value)} maxLength={80} />
+            <input className="input" placeholder="Bairro (vários: Pituba, Itaigara)" value={zName} onChange={(e) => setZName(e.target.value)} maxLength={80} />
             <input className="input max-w-[7rem]" placeholder="Taxa R$" inputMode="decimal" value={zFee} onChange={(e) => setZFee(e.target.value)} />
             <button className="btn-ghost btn-sm shrink-0" onClick={addZone}>Adicionar</button>
           </div>
