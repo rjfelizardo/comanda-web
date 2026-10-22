@@ -22,6 +22,7 @@ export default function Store({ business, categories, products, zones, isOpen }:
   const [done, setDone] = useState<{ code: string; total: number } | null>(null);
   const [activeCat, setActiveCat] = useState<string>('');
   const [ordersOpen, setOrdersOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     try {
@@ -47,6 +48,31 @@ export default function Store({ business, categories, products, zones, isOpen }:
     return out;
   }, [categories, products]);
 
+  const fold = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const searching = query.trim().length > 0;
+  const visible = useMemo(() => {
+    if (!searching) return sections;
+    const q = fold(query.trim());
+    return sections
+      .map((s) => ({ ...s, items: s.items.filter((p) => fold(p.name + ' ' + (p.description ?? '')).includes(q)) }))
+      .filter((s) => s.items.length > 0);
+  }, [sections, query, searching]);
+
+  useEffect(() => {
+    if (searching || sections.length < 2) return;
+    const onScroll = () => {
+      let cur = sections[0].id;
+      for (const sec of sections) {
+        const el = document.getElementById(`cat-${sec.id}`);
+        if (el && el.getBoundingClientRect().top <= 160) cur = sec.id;
+      }
+      setActiveCat(cur);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [sections, searching]);
+
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.quantity, 0);
   const count = cart.reduce((s, l) => s + l.quantity, 0);
 
@@ -66,7 +92,7 @@ export default function Store({ business, categories, products, zones, isOpen }:
   if (done) return <Success business={business} code={done.code} total={done.total} onTrack={() => { setDone(null); setOrdersOpen(true); }} />;
 
   return (
-    <div className="mx-auto min-h-screen max-w-2xl pb-28">
+    <div className="mx-auto min-h-screen max-w-6xl pb-28">
       {/* Capa */}
       <div className="relative h-40 overflow-hidden bg-gradient-to-br from-brand-light via-brand to-brand-dark sm:h-52">
         {business.banner_url && (
@@ -105,50 +131,71 @@ export default function Store({ business, categories, products, zones, isOpen }:
         )}
       </header>
 
-      {/* Categorias */}
-      {sections.length > 1 && (
-        <nav className="sticky top-0 z-10 mt-4 flex gap-2 overflow-x-auto bg-cream/95 px-4 py-3 backdrop-blur">
-          {sections.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => scrollTo(s.id)}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
-                activeCat === s.id ? 'bg-ink text-white' : 'bg-white text-ink shadow-card'
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
-        </nav>
-      )}
+      {/* Busca + categorias */}
+      <div className="sticky top-0 z-10 mt-4 bg-cream/95 backdrop-blur">
+        <div className="px-4 pt-3">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" aria-hidden>🔍</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar no cardápio"
+              aria-label="Buscar no cardápio"
+              className="input pl-10"
+            />
+          </div>
+        </div>
+        {!searching && sections.length > 1 && (
+          <nav className="flex gap-2 overflow-x-auto px-4 py-3">
+            {sections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => scrollTo(s.id)}
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
+                  activeCat === s.id ? 'bg-ink text-white' : 'bg-white text-ink shadow-card'
+                }`}
+              >
+                {s.name}
+              </button>
+            ))}
+          </nav>
+        )}
+        {(searching || sections.length <= 1) && <div className="h-3" />}
+      </div>
 
       {/* Cardápio */}
       <main className="mt-2 px-4">
         {sections.length === 0 && (
           <p className="py-16 text-center text-ink/60">O cardápio ainda está sendo preparado. Volte em breve.</p>
         )}
-        {sections.map((s) => (
-          <section key={s.id} id={`cat-${s.id}`} className="scroll-mt-16 pt-4">
+        {searching && visible.length === 0 && (
+          <p className="py-16 text-center text-ink/60">Nenhum item encontrado para “{query}”.</p>
+        )}
+        {visible.map((s) => (
+          <section key={s.id} id={`cat-${s.id}`} className="scroll-mt-32 pt-4">
             <h2 className="mb-3 text-lg font-extrabold">{s.name}</h2>
-            <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {s.items.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setPicked(p)}
-                  className="card flex items-stretch gap-3 p-3 text-left transition active:scale-[.99]"
+                  className="card flex flex-col overflow-hidden text-left transition active:scale-[.99]"
                 >
-                  <div className="min-w-0 flex-1">
+                  {p.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.photo_url} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                  ) : (
+                    <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-sand to-brand-sun/40 text-4xl" aria-hidden>🍽️</div>
+                  )}
+                  <div className="flex flex-1 flex-col p-3">
                     <h3 className="font-bold leading-tight">{p.name}</h3>
                     {p.description && <p className="mt-1 line-clamp-2 text-sm text-ink/60">{p.description}</p>}
-                    <p className="mt-2 font-bold text-brand-dark">
+                    <p className="mt-auto pt-2 font-bold text-brand-dark">
                       {p.groups.length > 0 && p.base_price > 0 ? 'a partir de ' : ''}
                       {p.base_price > 0 ? brl(p.base_price) : minFromOptions(p)}
                     </p>
                   </div>
-                  {p.photo_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.photo_url} alt="" className="h-24 w-24 shrink-0 rounded-xl object-cover" />
-                  )}
                 </button>
               ))}
             </div>
