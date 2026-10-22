@@ -188,23 +188,23 @@ export default function Store({ business, categories, products, zones, isOpen }:
         {visible.map((s) => (
           <section key={s.id} id={`cat-${s.id}`} className="scroll-mt-32 pt-4">
             <h2 className="mb-3 text-lg font-extrabold">{s.name}</h2>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {s.items.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setPicked(p)}
-                  className="card flex flex-col overflow-hidden text-left transition active:scale-[.99]"
+                  className="card flex items-stretch gap-3 p-2 text-left transition active:scale-[.99]"
                 >
                   {p.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.photo_url} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                    <img src={p.photo_url} alt="" loading="lazy" className="h-24 w-24 shrink-0 rounded-xl object-cover" />
                   ) : (
-                    <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-sand to-brand-sun/40 text-4xl" aria-hidden>🍽️</div>
+                    <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sand to-brand-sun/40 text-3xl" aria-hidden>🍽️</div>
                   )}
-                  <div className="flex flex-1 flex-col p-3">
-                    <h3 className="font-bold leading-tight">{p.name}</h3>
-                    {p.description && <p className="mt-1 line-clamp-2 text-sm text-ink/60">{p.description}</p>}
-                    <p className="mt-auto pt-2 font-bold text-brand-dark">
+                  <div className="flex min-w-0 flex-1 flex-col py-1 pr-1">
+                    <h3 className="line-clamp-2 text-[15px] font-bold leading-tight">{p.name}</h3>
+                    {p.description && <p className="mt-0.5 line-clamp-2 text-xs text-ink/60">{p.description}</p>}
+                    <p className="mt-auto pt-1 text-sm font-bold text-brand-dark">
                       {p.groups.length > 0 && p.base_price > 0 ? 'a partir de ' : ''}
                       {p.base_price > 0 ? brl(p.base_price) : minFromOptions(p)}
                     </p>

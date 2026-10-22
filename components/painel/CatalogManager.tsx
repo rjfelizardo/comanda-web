@@ -5,6 +5,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/upload';
 import { brl } from '@/lib/format';
 import MenuImport from '@/components/painel/MenuImport';
+import PhotoImport from '@/components/painel/PhotoImport';
 
 type Cat = { id: string; name: string; sort_order: number };
 type Opt = { id: string; group_id: string; name: string; price_delta: number; is_available: boolean };
@@ -26,6 +27,7 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [photoImp, setPhotoImp] = useState(false);
 
   const load = useCallback(async () => {
     const s = supabaseBrowser();
@@ -78,11 +80,13 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
         {canEdit && (
           <div className="flex gap-2">
             <button className="btn-ghost btn-sm" onClick={() => setImporting(true)}>📥 Importar planilha</button>
+            <button className="btn-ghost btn-sm" onClick={() => setPhotoImp(true)}>🖼 Importar fotos</button>
             <button className="btn-primary btn-sm" onClick={() => setEditing('new')}>+ Novo produto</button>
           </div>
         )}
       </div>
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {photoImp && <PhotoImport businessId={businessId} products={prods.map((p) => ({ id: p.id, name: p.name, photo_url: p.photo_url }))} onClose={() => setPhotoImp(false)} onDone={load} />}
       {importing && <MenuImport businessId={businessId} onClose={() => setImporting(false)} onDone={load} />}
 
       <section className="card p-4">
