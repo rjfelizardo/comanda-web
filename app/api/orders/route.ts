@@ -68,6 +68,7 @@ export async function POST(req: Request) {
   const cleanItems = items.map((i: any) => ({
     product_id: str(i?.product_id, 60),
     half_product_id: str(i?.half_product_id, 60) || null,
+    half_product_ids: Array.isArray(i?.half_product_ids) ? i.half_product_ids.slice(0, 5).map((x: unknown) => str(x, 60)) : undefined,
     quantity: Number.isInteger(i?.quantity) ? i.quantity : 0,
     option_ids: Array.isArray(i?.option_ids) ? i.option_ids.slice(0, 30).map((x: unknown) => str(x, 60)) : [],
     notes: str(i?.notes, 200),

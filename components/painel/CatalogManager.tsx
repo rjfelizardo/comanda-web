@@ -8,7 +8,7 @@ import MenuImport from '@/components/painel/MenuImport';
 import PhotoImport from '@/components/painel/PhotoImport';
 
 type Cat = { id: string; name: string; sort_order: number };
-type Opt = { id: string; group_id: string; name: string; price_delta: number; is_available: boolean };
+type Opt = { id: string; group_id: string; name: string; price_delta: number; is_available: boolean; flavors?: number };
 type Grp = { id: string; product_id: string; name: string; min_select: number; max_select: number };
 type Prod = { id: string; category_id: string | null; name: string; description: string | null; base_price: number; photo_url: string | null; is_available: boolean; allow_half?: boolean };
 
@@ -39,7 +39,11 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
         return r.error ? q('id,category_id,name,description,base_price,photo_url,is_available') : r;
       })(),
       s.from('product_option_groups').select('id,product_id,name,min_select,max_select').eq('business_id', businessId).order('sort_order'),
-      s.from('product_options').select('id,group_id,name,price_delta,is_available').eq('business_id', businessId).order('sort_order'),
+      (async () => {
+        const q = (cols: string) => s.from('product_options').select(cols).eq('business_id', businessId).order('sort_order');
+        const r = await q('id,group_id,name,price_delta,is_available,flavors');
+        return r.error ? q('id,group_id,name,price_delta,is_available') : r;
+      })(),
     ]);
     if (c.error || p.error) setError('Não foi possível carregar o cardápio.');
     setCats((c.data ?? []) as Cat[]);
@@ -265,7 +269,7 @@ function ProductEditor({
             {product && (
               <>
                 {groups.map((g) => (
-                  <GroupBox key={g.id} g={g} opts={opts.filter((o) => o.group_id === g.id)} businessId={businessId} reload={reload} />
+                  <GroupBox key={g.id} g={g} opts={opts.filter((o) => o.group_id === g.id)} businessId={businessId} reload={reload} showFlavors={half} />
                 ))}
                 <div className="mt-3 grid gap-2 rounded-xl bg-sand/60 p-3">
                   <p className="text-sm font-semibold">Novo grupo</p>
@@ -285,7 +289,7 @@ function ProductEditor({
   );
 }
 
-function GroupBox({ g, opts, businessId, reload }: { g: Grp; opts: Opt[]; businessId: string; reload: () => void }) {
+function GroupBox({ g, opts, businessId, reload, showFlavors }: { g: Grp; opts: Opt[]; businessId: string; reload: () => void; showFlavors?: boolean }) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [err, setErr] = useState('');
@@ -297,6 +301,11 @@ function GroupBox({ g, opts, businessId, reload }: { g: Grp; opts: Opt[]; busine
     if (error) return setErr('Não foi possível adicionar.');
     setName(''); setPrice(''); setErr('');
     reload();
+  }
+  async function setFlavors(id: string, n: number) {
+    const { error } = await supabaseBrowser().from('product_options').update({ flavors: n }).eq('id', id);
+    if (error) setErr('Rode o SQL 07 no Supabase para configurar sabores.');
+    else reload();
   }
   async function delOpt(id: string) {
     await supabaseBrowser().from('product_options').delete().eq('id', id);
@@ -320,7 +329,17 @@ function GroupBox({ g, opts, businessId, reload }: { g: Grp; opts: Opt[]; busine
         {opts.map((o) => (
           <li key={o.id} className="flex items-center justify-between py-1.5">
             <span>{o.name} {o.price_delta > 0 && <span className="text-ink/60">+ {brl(o.price_delta)}</span>}</span>
-            <button onClick={() => delOpt(o.id)} className="text-ink/50" aria-label={`Apagar ${o.name}`}>✕</button>
+            <span className="flex items-center gap-2">
+              {showFlavors && (
+                <select className="rounded-lg border border-sand bg-white px-1 py-1 text-xs" value={o.flavors ?? 2} onChange={(e) => setFlavors(o.id, Number(e.target.value))} aria-label={`Sabores em ${o.name}`}>
+                  <option value={1}>1 sabor</option>
+                  <option value={2}>até 2 sabores</option>
+                  <option value={3}>até 3 sabores</option>
+                  <option value={4}>até 4 sabores</option>
+                </select>
+              )}
+              <button onClick={() => delOpt(o.id)} className="text-ink/50" aria-label={`Apagar ${o.name}`}>✕</button>
+            </span>
           </li>
         ))}
       </ul>

@@ -331,8 +331,8 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
   const [sel, setSel] = useState<Record<string, string[]>>({});
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState('');
-  const [halfOn, setHalfOn] = useState(false);
-  const [halfId, setHalfId] = useState('');
+  const [extraIds, setExtraIds] = useState<string[]>([]);
+  const [picking, setPicking] = useState(false);
 
   function toggle(gid: string, oid: string, max: number) {
     setSel((prev) => {
@@ -347,38 +347,61 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
   const chosen = product.groups.flatMap((g) => g.options.filter((o) => (sel[g.id] ?? []).includes(o.id)));
   const unit1 = product.base_price + chosen.reduce((s, o) => s + o.price_delta, 0);
   const missing = product.groups.find((g) => (sel[g.id]?.length ?? 0) < g.min_select);
-  const half = halfOn ? halves.find((h) => h.id === halfId) : undefined;
-  // segundo sabor: mesmas opcoes pelo nome (grupo + opcao). Cobra o valor do sabor mais caro.
-  let halfUnit: number | null = null;
-  if (half) {
-    let ok = true;
-    let sum = half.base_price;
+  // total de sabores permitido pelo tamanho escolhido (sem tamanho escolhido: 2)
+  const maxFlavors = chosen.length ? Math.max(...chosen.map((o) => o.flavors ?? 2)) : 2;
+  const canHalf = halves.length > 0 && maxFlavors > 1;
+  const maxExtra = maxFlavors - 1;
+
+  // outro sabor: mesmas opcoes pelo nome (grupo + opcao); preco do sabor mais caro
+  function priceOf(h: Product): number | null {
+    let sum = h.base_price;
     for (const g of product.groups) {
       for (const o of g.options.filter((x) => (sel[g.id] ?? []).includes(x.id))) {
-        const o2 = half.groups.find((x) => x.name.toLowerCase() === g.name.toLowerCase())?.options.find((x) => x.name.toLowerCase() === o.name.toLowerCase());
-        if (!o2) ok = false; else sum += o2.price_delta;
+        const o2 = h.groups.find((x) => x.name.toLowerCase() === g.name.toLowerCase())?.options.find((x) => x.name.toLowerCase() === o.name.toLowerCase());
+        if (!o2) return null;
+        sum += o2.price_delta;
       }
     }
-    halfUnit = ok ? sum : null;
+    return sum;
   }
-  const halfBlocked = halfOn && (!half || (!missing && halfUnit === null));
-  const unit = half && halfUnit !== null ? Math.max(unit1, halfUnit) : unit1;
+  const available = halves.filter((h) => priceOf(h) !== null);
+  const extras = extraIds.map((id) => halves.find((h) => h.id === id)).filter((h): h is Product => !!h && priceOf(h) !== null).slice(0, maxExtra);
+  const total = extras.length + 1;
+  const unit = Math.max(unit1, ...extras.map((h) => priceOf(h) ?? 0));
+  const frac = total === 2 ? 'Meio' : `1/${total}`;
+  const name = extras.length ? [product, ...extras].map((p) => `${frac} ${p.name}`).join(' / ') : product.name;
 
   function add() {
-    if (missing || halfBlocked) return;
+    if (missing) return;
     const ids = chosen.map((o) => o.id).sort();
-    const hid = half ? half.id : null;
+    const hids = extras.map((h) => h.id);
     onAdd({
-      key: `${product.id}|${hid ?? ''}|${ids.join(',')}|${notes.trim()}`,
+      key: `${product.id}|${hids.join('+')}|${ids.join(',')}|${notes.trim()}`,
       product_id: product.id,
-      half_product_id: hid,
-      name: half ? `Meio ${product.name} / Meio ${half.name}` : product.name,
+      half_product_id: hids[0] ?? null,
+      half_product_ids: hids,
+      name,
       unit_price: unit,
       quantity: qty,
       option_ids: ids,
       option_labels: chosen.map((o) => o.name),
       notes: notes.trim(),
     });
+  }
+
+  if (picking) {
+    return (
+      <FlavorPicker
+        title={`Escolha até ${maxFlavors} sabores`}
+        subtitle={`${product.name} já é o 1º sabor. Você pode somar até ${maxExtra}.`}
+        candidates={available}
+        initial={extraIds}
+        max={maxExtra}
+        unitOf={(h) => priceOf(h) ?? 0}
+        onCancel={() => setPicking(false)}
+        onConfirm={(ids) => { setExtraIds(ids); setPicking(false); }}
+      />
+    );
   }
 
   return (
@@ -419,23 +442,28 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
         </fieldset>
       ))}
 
-      {halves.length > 0 && (
+      {canHalf && (
         <div className="mb-5 rounded-2xl border border-sand p-3">
-          <label className="flex items-center gap-3 font-bold">
-            <input type="checkbox" className="h-5 w-5 accent-brand" checked={halfOn} onChange={(e) => setHalfOn(e.target.checked)} />
-            🍕 Quero meio a meio
-          </label>
-          {halfOn && (
-            <div className="mt-3">
-              <label className="label" htmlFor="metade">Escolha o outro sabor</label>
-              <select id="metade" className="input" value={halfId} onChange={(e) => setHalfId(e.target.value)}>
-                <option value="">Escolha…</option>
-                {halves.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </select>
-              {half && !missing && halfUnit === null && <p className="mt-2 text-sm text-red-700">Este sabor não tem o tamanho escolhido.</p>}
-              <p className="mt-2 text-xs text-ink/60">No meio a meio vale o preço do sabor mais caro.</p>
-            </div>
+          <div className="flex items-center justify-between">
+            <p className="font-bold">🍕 Escolha até {maxFlavors} sabores <span className="font-normal text-ink/60">(opcional)</span></p>
+          </div>
+          <ul className="mt-2 divide-y divide-sand text-sm">
+            <li className="flex items-center justify-between py-2"><span className="font-medium">{product.name}</span><span className="text-ink/60">1º sabor</span></li>
+            {extras.map((h) => (
+              <li key={h.id} className="flex items-center justify-between py-2">
+                <span className="font-medium">{h.name}</span>
+                <button className="text-red-700 underline" onClick={() => setExtraIds((x) => x.filter((id) => id !== h.id))}>Remover</button>
+              </li>
+            ))}
+          </ul>
+          {missing ? (
+            <p className="mt-2 text-sm text-ink/60">Escolha primeiro: {missing.name}.</p>
+          ) : extras.length < maxExtra ? (
+            <button className="btn-ghost mt-2 w-full" onClick={() => setPicking(true)}>+ Adicionar sabor</button>
+          ) : (
+            <p className="mt-2 text-sm text-ink/60">Máximo de sabores atingido para este tamanho.</p>
           )}
+          <p className="mt-2 text-xs text-ink/60">Com vários sabores vale o preço do sabor mais caro.</p>
         </div>
       )}
 
@@ -448,9 +476,65 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
           <span className="w-5 text-center font-bold">{qty}</span>
           <button className="h-10 w-10 text-xl" onClick={() => setQty((q) => Math.min(50, q + 1))} aria-label="Mais">+</button>
         </div>
-        <button className="btn-primary flex-1" disabled={!!missing || halfBlocked || unit <= 0} onClick={add}>
-          {missing ? `Escolha: ${missing.name}` : halfBlocked ? 'Escolha o outro sabor' : `Adicionar · ${brl(unit * qty)}`}
+        <button className="btn-primary flex-1" disabled={!!missing || unit <= 0} onClick={add}>
+          {missing ? `Escolha: ${missing.name}` : `Adicionar · ${brl(unit * qty)}`}
         </button>
+      </div>
+    </Sheet>
+  );
+}
+
+/* ---------- Escolha de sabores (dentro da janela do pedido) ---------- */
+function FlavorPicker({
+  title, subtitle, candidates, initial, max, unitOf, onCancel, onConfirm,
+}: {
+  title: string; subtitle: string; candidates: Product[]; initial: string[]; max: number;
+  unitOf: (p: Product) => number; onCancel: () => void; onConfirm: (ids: string[]) => void;
+}) {
+  const [picked, setPicked] = useState<string[]>(initial);
+  const [q, setQ] = useState('');
+  const norm = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const list = candidates.filter((p) => !q.trim() || norm(`${p.name} ${p.description ?? ''}`).includes(norm(q)));
+
+  function toggle(id: string) {
+    setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= max ? cur : [...cur, id]));
+  }
+
+  return (
+    <Sheet onClose={onCancel} title={title}>
+      <p className="mb-3 text-sm text-ink/70">{subtitle}</p>
+      <input className="input mb-3" type="search" placeholder="Buscar sabor…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <ul className="grid gap-2 pb-4">
+        {list.map((p) => {
+          const on = picked.includes(p.id);
+          const full = !on && picked.length >= max;
+          return (
+            <li key={p.id}>
+              <button
+                type="button"
+                disabled={full}
+                onClick={() => toggle(p.id)}
+                className={`flex w-full items-center gap-3 rounded-xl border p-2 text-left ${on ? 'border-brand bg-brand/10' : 'border-sand bg-white'} ${full ? 'opacity-40' : ''}`}
+              >
+                {p.photo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{p.name}</span>
+                  {p.description && <span className="line-clamp-2 block text-xs text-ink/60">{p.description}</span>}
+                  <span className="block text-sm text-ink/80">{brl(unitOf(p))}</span>
+                </span>
+                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border ${on ? 'border-brand bg-brand text-white' : 'border-ink/30'}`}>{on ? '✓' : ''}</span>
+              </button>
+            </li>
+          );
+        })}
+        {list.length === 0 && <li className="py-6 text-center text-sm text-ink/60">Nenhum sabor encontrado.</li>}
+      </ul>
+      <div className="sticky bottom-0 -mx-4 flex items-center gap-3 border-t border-sand bg-white p-4">
+        <button className="btn-ghost flex-1" onClick={onCancel}>CANCELAR</button>
+        <button className="btn-primary flex-1" onClick={() => onConfirm(picked)}>CONFIRMAR{picked.length ? ` (${picked.length})` : ''}</button>
       </div>
     </Sheet>
   );
@@ -585,7 +669,7 @@ function Checkout({
           change_for: change ? Number(change.replace(',', '.')) : null,
           coupon_code: coupon ? coupon.code : null,
           scheduled_for: scheduleOn && scheduleAt ? new Date(scheduleAt).toISOString() : null,
-          items: cart.map((l) => ({ product_id: l.product_id, half_product_id: l.half_product_id ?? null, quantity: l.quantity, option_ids: l.option_ids, notes: l.notes })),
+          items: cart.map((l) => ({ product_id: l.product_id, half_product_id: l.half_product_id ?? null, half_product_ids: l.half_product_ids ?? (l.half_product_id ? [l.half_product_id] : []), quantity: l.quantity, option_ids: l.option_ids, notes: l.notes })),
         }),
       });
       const data = await res.json().catch(() => ({}));

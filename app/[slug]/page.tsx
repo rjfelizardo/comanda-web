@@ -28,7 +28,12 @@ async function load(slug: string) {
       return r.error ? q('id,category_id,name,description,base_price,photo_url,sort_order') : r;
     })(),
     db.from('product_option_groups').select('id,product_id,name,min_select,max_select,sort_order').eq('business_id', biz.id).order('sort_order'),
-    db.from('product_options').select('id,group_id,name,price_delta,sort_order').eq('business_id', biz.id).eq('is_available', true).order('sort_order'),
+    (async () => {
+      const q = (cols: string) => db.from('product_options').select(cols).eq('business_id', biz.id).eq('is_available', true).order('sort_order');
+      const r = await q('id,group_id,name,price_delta,sort_order,flavors');
+      // Antes do SQL 07 a coluna flavors nao existe.
+      return r.error ? q('id,group_id,name,price_delta,sort_order') : r;
+    })(),
     db.from('delivery_zones').select('id,name,fee,min_order,eta_min').eq('business_id', biz.id).order('name'),
     db.rpc('is_business_open', { p_business: biz.id }),
     db.from('business_hours').select('weekday,opens,closes').eq('business_id', biz.id),
@@ -51,7 +56,7 @@ async function load(slug: string) {
           sort_order: g.sort_order,
           options: optList
             .filter((o) => o.group_id === g.id)
-            .map((o) => ({ id: o.id, name: o.name, price_delta: Number(o.price_delta), sort_order: o.sort_order })),
+            .map((o) => ({ id: o.id, name: o.name, price_delta: Number(o.price_delta), sort_order: o.sort_order, flavors: o.flavors ?? 2 })),
         })
       )
       .filter((g) => g.options.length > 0),
