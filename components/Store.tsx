@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { brl, onlyDigits } from '@/lib/format';
+import MyOrders, { saveEntry } from '@/components/MyOrders';
 import type { Business, CartLine, Category, Product, Zone } from '@/lib/types';
 
 type Props = {
@@ -20,6 +21,7 @@ export default function Store({ business, categories, products, zones, isOpen }:
   const [checkout, setCheckout] = useState(false);
   const [done, setDone] = useState<{ code: string; total: number } | null>(null);
   const [activeCat, setActiveCat] = useState<string>('');
+  const [ordersOpen, setOrdersOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -61,7 +63,7 @@ export default function Store({ business, categories, products, zones, isOpen }:
     document.getElementById(`cat-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  if (done) return <Success business={business} code={done.code} total={done.total} />;
+  if (done) return <Success business={business} code={done.code} total={done.total} onTrack={() => { setDone(null); setOrdersOpen(true); }} />;
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl pb-28">
@@ -94,6 +96,7 @@ export default function Store({ business, categories, products, zones, isOpen }:
             </div>
           </div>
         </div>
+        <button onClick={() => setOrdersOpen(true)} className="btn-ghost btn-sm mt-3 w-full">🧾 Meus pedidos</button>
         {business.description && <p className="mt-3 text-sm text-ink/70">{business.description}</p>}
         {!isOpen && (
           <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">
@@ -174,6 +177,8 @@ export default function Store({ business, categories, products, zones, isOpen }:
           }}
         />
       )}
+
+      {ordersOpen && <MyOrders businessId={business.id} whatsapp={business.whatsapp_contact} onClose={() => setOrdersOpen(false)} />}
 
       {checkout && (
         <Checkout
@@ -378,6 +383,7 @@ function Checkout({
       try {
         localStorage.setItem('comanda-cliente', JSON.stringify({ name, phone, street, number, neighborhood }));
       } catch {}
+      saveEntry(business.id, { code: String(data.code), phone });
       onDone({ code: data.code, total: data.total });
     } catch {
       setError('Sem conexão. Tente novamente.');
@@ -501,7 +507,7 @@ function Checkout({
   );
 }
 
-function Success({ business, code, total }: { business: Business; code: string; total: number }) {
+function Success({ business, code, total, onTrack }: { business: Business; code: string; total: number; onTrack: () => void }) {
   const wa = business.whatsapp_contact
     ? `https://wa.me/${business.whatsapp_contact}?text=${encodeURIComponent(`Olá! Fiz o pedido ${code} pelo cardápio online.`)}`
     : null;
@@ -519,6 +525,7 @@ function Success({ business, code, total }: { business: Business; code: string; 
           Falar com a loja no WhatsApp
         </a>
       )}
+      <button className="btn-primary w-full" onClick={onTrack}>Acompanhar meu pedido</button>
       <button className="btn-ghost w-full" onClick={() => location.reload()}>Fazer outro pedido</button>
     </main>
   );
