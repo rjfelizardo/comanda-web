@@ -1,4 +1,5 @@
 'use client';
+import { storeUrl } from '@/lib/storeUrl';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -49,7 +50,7 @@ export default function PanelNav({ list, currentId, slug }: { list: M[]; current
         })}
       </nav>
       <div className="flex items-center gap-2 text-sm">
-        <a href={`/${slug}`} target="_blank" rel="noreferrer" className="font-semibold text-brand-dark underline">Ver loja</a>
+        <a href={storeUrl(slug)} target="_blank" rel="noreferrer" className="font-semibold text-brand-dark underline">Ver loja</a>
         <button onClick={logout} className="text-ink/60 underline">Sair</button>
       </div>
     </div>
