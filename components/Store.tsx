@@ -350,6 +350,10 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
   // total de sabores permitido pelo tamanho escolhido (sem tamanho escolhido: 2)
   const maxFlavors = chosen.length ? Math.max(...chosen.map((o) => o.flavors ?? 2)) : 2;
   const canHalf = halves.length > 0 && maxFlavors > 1;
+  // fluxo MenuDino: sabor -> tamanho -> adicionar sabor / opcionais
+  const primary = product.allow_half ? product.groups.find((g) => g.min_select === 1 && g.max_select === 1) : undefined;
+  const primaryChosen = primary ? (sel[primary.id]?.length ?? 0) > 0 : true;
+  const primaryOpt = primary ? primary.options.find((o) => (sel[primary.id] ?? []).includes(o.id)) : undefined;
   const maxExtra = maxFlavors - 1;
 
   // outro sabor: mesmas opcoes pelo nome (grupo + opcao); preco do sabor mais caro
@@ -412,7 +416,56 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
       )}
       {product.description && <p className="mb-4 text-sm text-ink/70">{product.description}</p>}
 
-      {product.groups.map((g) => (
+      {primary && !primaryChosen && (
+        <div className="mb-5">
+          <p className="mb-3 font-bold">Selecione o {primary.name.toLowerCase()}:</p>
+          <div className="flex flex-wrap justify-around gap-3">
+            {primary.options.map((o) => (
+              <button key={o.id} type="button" onClick={() => toggle(primary.id, o.id, 1)} className="flex w-20 flex-col items-center text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sand text-xl font-bold">{o.name.charAt(0).toUpperCase()}</span>
+                <span className="mt-1 text-xs uppercase text-ink/70">{o.name}</span>
+                <span className="text-sm font-bold">{brl(product.base_price + o.price_delta)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {primary && primaryChosen && primaryOpt && (
+        <div className="mb-4 flex items-center justify-between rounded-xl bg-sand px-3 py-3">
+          <span className="flex items-center gap-3 font-bold">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-white">{primaryOpt.name.charAt(0).toUpperCase()}</span>
+            <span className="uppercase">{primaryOpt.name}</span>
+          </span>
+          <button className="text-sm underline" onClick={() => setSel((prev) => ({ ...prev, [primary.id]: [] }))}>✎ Alterar</button>
+        </div>
+      )}
+
+      {primaryChosen && canHalf && (
+        <div className="mb-5">
+          <p className="mb-2 font-bold">Escolha até {maxFlavors} sabores <span className="font-normal text-ink/60">(opcional)</span></p>
+          {extras.length > 0 && (
+            <ul className="mb-2 divide-y divide-sand rounded-xl border border-sand text-sm">
+              <li className="flex items-center justify-between px-3 py-2"><span className="font-medium">{product.name}</span><span className="text-ink/60">1º sabor</span></li>
+              {extras.map((h) => (
+                <li key={h.id} className="flex items-center justify-between px-3 py-2">
+                  <span className="font-medium">{h.name}</span>
+                  <button className="text-red-700 underline" onClick={() => setExtraIds((x) => x.filter((id) => id !== h.id))}>Remover</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {extras.length < maxExtra ? (
+            <button type="button" onClick={() => setPicking(true)} className="flex h-28 w-full flex-col items-center justify-center gap-2 rounded-xl bg-sand">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-2xl text-white">+</span>
+              <span className="font-medium">Adicionar sabor</span>
+            </button>
+          ) : (
+            <p className="text-sm text-ink/60">Máximo de sabores atingido para este tamanho.</p>
+          )}
+        </div>
+      )}
+
+      {primaryChosen && product.groups.filter((g) => g !== primary).map((g) => (
         <fieldset key={g.id} className="mb-5">
           <legend className="mb-2 flex w-full items-center justify-between font-bold">
             <span>{g.name}</span>
@@ -442,33 +495,13 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
         </fieldset>
       ))}
 
-      {canHalf && (
-        <div className="mb-5 rounded-2xl border border-sand p-3">
-          <div className="flex items-center justify-between">
-            <p className="font-bold">🍕 Escolha até {maxFlavors} sabores <span className="font-normal text-ink/60">(opcional)</span></p>
-          </div>
-          <ul className="mt-2 divide-y divide-sand text-sm">
-            <li className="flex items-center justify-between py-2"><span className="font-medium">{product.name}</span><span className="text-ink/60">1º sabor</span></li>
-            {extras.map((h) => (
-              <li key={h.id} className="flex items-center justify-between py-2">
-                <span className="font-medium">{h.name}</span>
-                <button className="text-red-700 underline" onClick={() => setExtraIds((x) => x.filter((id) => id !== h.id))}>Remover</button>
-              </li>
-            ))}
-          </ul>
-          {missing ? (
-            <p className="mt-2 text-sm text-ink/60">Escolha primeiro: {missing.name}.</p>
-          ) : extras.length < maxExtra ? (
-            <button className="btn-ghost mt-2 w-full" onClick={() => setPicking(true)}>+ Adicionar sabor</button>
-          ) : (
-            <p className="mt-2 text-sm text-ink/60">Máximo de sabores atingido para este tamanho.</p>
-          )}
-          <p className="mt-2 text-xs text-ink/60">Com vários sabores vale o preço do sabor mais caro.</p>
-        </div>
+      {primaryChosen && (
+        <>
+          <label className="label" htmlFor="obs">Observação</label>
+          <input id="obs" className="input mb-2" maxLength={200} placeholder="Ex.: sem cebola" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          {extras.length > 0 && <p className="mb-5 text-xs italic text-ink/60">*Será cobrado pelo sabor de maior valor.</p>}
+        </>
       )}
-
-      <label className="label" htmlFor="obs">Observação</label>
-      <input id="obs" className="input mb-5" maxLength={200} placeholder="Ex.: sem cebola" value={notes} onChange={(e) => setNotes(e.target.value)} />
 
       <div className="sticky bottom-0 -mx-4 flex items-center gap-3 border-t border-sand bg-white p-4">
         <div className="flex items-center gap-3 rounded-full border border-sand px-2">
@@ -476,8 +509,8 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
           <span className="w-5 text-center font-bold">{qty}</span>
           <button className="h-10 w-10 text-xl" onClick={() => setQty((q) => Math.min(50, q + 1))} aria-label="Mais">+</button>
         </div>
-        <button className="btn-primary flex-1" disabled={!!missing || unit <= 0} onClick={add}>
-          {missing ? `Escolha: ${missing.name}` : `Adicionar · ${brl(unit * qty)}`}
+        <button className="btn-primary flex-1" disabled={!!missing || unit <= 0 || !primaryChosen} onClick={add}>
+          {!primaryChosen ? 'Selecione um tamanho' : missing ? `Escolha: ${missing.name}` : `Adicionar · ${brl(unit * qty)}`}
         </button>
       </div>
     </Sheet>
