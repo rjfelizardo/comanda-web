@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/upload';
 import { brl } from '@/lib/format';
+import MenuImport from '@/components/painel/MenuImport';
 
 type Cat = { id: string; name: string; sort_order: number };
 type Opt = { id: string; group_id: string; name: string; price_delta: number; is_available: boolean };
@@ -24,6 +25,7 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
   const [newCat, setNewCat] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     const s = supabaseBrowser();
@@ -69,9 +71,15 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
     <div className="grid gap-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold">Cardápio</h1>
-        {canEdit && <button className="btn-primary btn-sm" onClick={() => setEditing('new')}>+ Novo produto</button>}
+        {canEdit && (
+          <div className="flex gap-2">
+            <button className="btn-ghost btn-sm" onClick={() => setImporting(true)}>📥 Importar planilha</button>
+            <button className="btn-primary btn-sm" onClick={() => setEditing('new')}>+ Novo produto</button>
+          </div>
+        )}
       </div>
       {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {importing && <MenuImport businessId={businessId} onClose={() => setImporting(false)} onDone={load} />}
 
       <section className="card p-4">
         <h2 className="mb-3 font-bold">Categorias</h2>
