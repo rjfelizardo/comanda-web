@@ -120,8 +120,6 @@ export async function createOrder(b: any, host: string, proto: string): Promise<
     // Pix: cria a cobranca no Mercado Pago da loja. Se falhar, o pedido e cancelado (nao fica pedido fantasma).
     const bizId = str(b.business_id, 60);
     const { data: ord } = await db.from('orders').select('id').eq('business_id', bizId).eq('code', row.code).maybeSingle();
-    const host = host;
-    const proto = proto;
     const pay = ord
       ? await mpFetch(mpToken, '/v1/payments', {
           method: 'POST',
