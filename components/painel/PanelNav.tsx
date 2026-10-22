@@ -24,6 +24,7 @@ export default function PanelNav({ list, currentId, slug }: { list: M[]; current
   const tabs = [
     { href: '/painel', label: 'Pedidos' },
     { href: '/painel/cardapio', label: 'Cardápio' },
+    { href: '/painel/relatorios', label: 'Relatórios' },
     { href: '/painel/config', label: 'Configurações' },
   ];
 

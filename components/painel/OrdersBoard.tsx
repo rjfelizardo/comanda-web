@@ -3,17 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { brl, STATUS_LABEL } from '@/lib/format';
+import { printOrder } from '@/lib/printOrder';
 
 type Item = { id: string; order_id: string; product_name: string; quantity: number; options: any[]; notes: string | null };
 type Order = {
   id: string; code: string; status: string; fulfillment: string; customer_name: string; customer_phone: string;
   total: number; subtotal: number; delivery_fee: number; payment_method: string; payment_status: string;
   address: any; notes: string | null; change_for: number | null; created_at: string; items: Item[];
+  discount?: number; scheduled_for?: string | null;
 };
 
 const ACTIVE = ['pending_approval', 'approved', 'awaiting_payment', 'paid', 'in_preparation', 'ready', 'out_for_delivery'];
 
-export default function OrdersBoard({ businessId }: { businessId: string }) {
+export default function OrdersBoard({ businessId, businessName }: { businessId: string; businessName: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [tab, setTab] = useState<'active' | 'done'>('active');
   const [busyId, setBusyId] = useState('');
@@ -147,7 +149,10 @@ export default function OrdersBoard({ businessId }: { businessId: string }) {
                 <p className="font-display text-xl font-extrabold">#{o.code}</p>
                 <p className="text-sm text-ink/60">{new Date(o.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
               </div>
-              <span className={`chip ${badge(o.status)}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => printOrder(businessName, o)} className="rounded-full bg-sand px-3 py-1 text-xs font-semibold" aria-label="Imprimir pedido">🖨 Imprimir</button>
+                <span className={`chip ${badge(o.status)}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
+              </div>
             </header>
 
             <p className="mt-3 font-semibold">{o.customer_name}</p>
