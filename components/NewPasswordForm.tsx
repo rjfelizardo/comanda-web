@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabaseBrowser } from '@/lib/supabase/client';
+import { supabaseRecovery } from '@/lib/supabase/recovery';
 
 export default function NewPasswordForm() {
   const router = useRouter();
+  const client = useRef<ReturnType<typeof supabaseRecovery> | null>(null);
   const [ready, setReady] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -14,19 +15,32 @@ export default function NewPasswordForm() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    supabaseBrowser().auth.getUser().then(({ data }) => setReady(!!data.user));
+    const c = supabaseRecovery();
+    client.current = c;
+    const { data: sub } = c.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) setReady(true);
+    });
+    const t = setTimeout(() => setReady((r) => (r === null ? false : r)), 4000);
+    return () => {
+      clearTimeout(t);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (password.length < 8) return setError('A senha precisa ter pelo menos 8 caracteres.');
+    const c = client.current;
+    if (!c) return;
     setBusy(true);
-    const { error } = await supabaseBrowser().auth.updateUser({ password });
-    setBusy(false);
-    if (error) return setError('Não foi possível trocar a senha. Peça um novo link e tente de novo.');
-    router.replace('/painel');
-    router.refresh();
+    const { error } = await c.auth.updateUser({ password });
+    if (error) {
+      setBusy(false);
+      return setError('Não foi possível trocar a senha. Peça um novo link e tente de novo.');
+    }
+    await c.auth.signOut();
+    router.replace('/login?senha=ok');
   }
 
   return (
@@ -38,10 +52,12 @@ export default function NewPasswordForm() {
       </div>
       <h1 className="text-center text-2xl font-extrabold">Crie sua nova senha</h1>
 
+      {ready === null && <p className="text-center text-ink/60">Verificando o link…</p>}
+
       {ready === false && (
         <div className="grid gap-3 text-center">
           <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">
-            Este link expirou ou foi aberto em outro navegador. Peça um novo link na tela de entrada e abra-o no mesmo aparelho.
+            Este link expirou ou já foi usado. Peça um novo link na tela de entrada.
           </p>
           <Link href="/login" className="btn-primary">Voltar para entrar</Link>
         </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { supabaseRecovery } from '@/lib/supabase/recovery';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function LoginForm() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  const [info, setInfo] = useState(params.get('senha') === 'ok' ? 'Senha alterada! Entre com a nova senha.' : '');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,8 +59,8 @@ export default function LoginForm() {
     setError('');
     setInfo('');
     if (!email.includes('@')) return setError('Digite seu e-mail acima para receber o link.');
-    const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${location.origin}/auth/callback?next=/nova-senha`,
+    const { error } = await supabaseRecovery().auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${location.origin}/nova-senha`,
     });
     if (error) setError('Não foi possível enviar o e-mail agora.');
     else setInfo('Se esse e-mail tiver conta, enviamos um link para criar nova senha.');
