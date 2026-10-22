@@ -60,28 +60,18 @@ export default function Home() {
           <p className="mt-3 text-sm text-ink/60">Sem cartão de crédito pra começar.</p>
         </div>
 
-        {/* mock celular */}
-        <div className="relative mx-auto w-full max-w-xs">
-          <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-br from-brand-sun/60 to-brand/30 blur-2xl" />
-          <div className="rounded-[2.2rem] border-[6px] border-ink bg-white p-3 shadow-card">
-            <div className="rounded-2xl bg-cream p-3">
-              <p className="text-xs font-semibold text-ink/60">Pizzaria do Rodrigo</p>
-              <p className="font-display text-lg font-extrabold">Escolha seu sabor</p>
-              <div className="mt-3 space-y-2">
-                {[['Calabresa', 'R$ 42,00'], ['Frango c/ Catupiry', 'R$ 48,00'], ['Quatro Queijos', 'R$ 52,00']].map(([n, p]) => (
-                  <div key={n} className="flex items-center gap-3 rounded-xl bg-white p-2 shadow-card">
-                    <div className="grid h-12 w-12 place-items-center rounded-lg bg-sand text-2xl">🍕</div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold leading-tight">{n}</p>
-                      <p className="text-xs text-ink/60">a partir de {p}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 rounded-xl bg-brand-sun/40 p-2 text-center text-xs font-semibold">+ Adicionar outro sabor (meio a meio)</div>
-              <div className="mt-3 rounded-full bg-brand py-2.5 text-center text-sm font-bold text-white">💠 Pagar com Pix</div>
+        {/* celulares com a tela real */}
+        <div className="relative mx-auto h-[26rem] w-full max-w-sm sm:h-[32rem]">
+          <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-brand-sun/70 to-brand/30 blur-3xl" />
+          {[
+            { src: '/app-loja-2.jpg', cls: 'left-0 top-8 -rotate-6 z-0' },
+            { src: '/app-loja-1.jpg', cls: 'right-0 top-0 rotate-3 z-10' },
+          ].map((p) => (
+            <div key={p.src} className={`absolute w-[52%] overflow-hidden rounded-[1.8rem] border-[5px] border-ink bg-ink shadow-2xl ${p.cls}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.src} alt="Loja no Comanda" className="block w-full" />
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
