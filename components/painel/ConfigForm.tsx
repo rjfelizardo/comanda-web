@@ -32,6 +32,11 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   const [mpOn, setMpOn] = useState<boolean | null>(null);
   const [mpToken, setMpToken] = useState('');
   const [mpBusy, setMpBusy] = useState(false);
+  const [wa, setWa] = useState<any>(null);
+  const [waPid, setWaPid] = useState('');
+  const [waWaba, setWaWaba] = useState('');
+  const [waToken, setWaToken] = useState('');
+  const [waBusy, setWaBusy] = useState(false);
   const [bKm, setBKm] = useState('');
   const [bFee, setBFee] = useState('');
 
@@ -60,6 +65,11 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
     setMpOn(!error && data?.status === 'active');
   }, [businessId]);
   useEffect(() => { loadMp(); }, [loadMp]);
+  const loadWa = useCallback(async () => {
+    const { data, error } = await supabaseBrowser().from('wa_accounts').select('display_phone,bot_enabled,status').eq('business_id', businessId).maybeSingle();
+    setWa(!error && data?.status === 'active' ? data : false);
+  }, [businessId]);
+  useEffect(() => { loadWa(); }, [loadWa]);
   useEffect(() => {
     supabaseBrowser().rpc('has_custom_branding', { p_business: businessId }).then(({ data }) => setBrand(data === true));
   }, [businessId]);
@@ -150,6 +160,31 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
       else { setMpToken(''); setMsg('Mercado Pago conectado! Os clientes já podem pagar com Pix.'); loadMp(); }
     } catch { setErr('Sem conexão.'); }
     setMpBusy(false);
+  }
+  async function connectWa() {
+    setErr(''); setMsg('');
+    if (waPid.trim().length < 6 || waToken.trim().length < 20) return setErr('Preencha o ID do número e o token.');
+    setWaBusy(true);
+    try {
+      const res = await fetch('/api/wa/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ business_id: businessId, phone_number_id: waPid.trim(), waba_id: waWaba.trim(), token: waToken.trim() }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) setErr(j.error || 'Não foi possível conectar.');
+      else { setWaToken(''); setMsg('WhatsApp conectado! O atendente já responde por esse número.'); loadWa(); }
+    } catch { setErr('Sem conexão.'); }
+    setWaBusy(false);
+  }
+  async function toggleWaBot(on: boolean) {
+    const { error } = await supabaseBrowser().rpc('set_wa_bot', { p_business: businessId, p_enabled: on });
+    if (error) return setErr('Não foi possível alterar.');
+    setMsg(on ? 'Atendente ligado.' : 'Atendente desligado (o número continua conectado).');
+    loadWa();
+  }
+  async function disconnectWa() {
+    if (!confirm('Desconectar o WhatsApp? O atendente deixa de responder.')) return;
+    const { error } = await supabaseBrowser().rpc('disconnect_wa', { p_business: businessId });
+    if (error) return setErr('Não foi possível desconectar.');
+    setMsg('WhatsApp desconectado.');
+    loadWa();
   }
   async function disconnectMp() {
     if (!confirm('Desconectar o Mercado Pago? Os clientes só poderão pagar na entrega.')) return;
@@ -354,6 +389,35 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
               <div className="flex gap-2">
                 <input className="input" type="password" autoComplete="off" placeholder="APP_USR-…" value={mpToken} onChange={(e) => setMpToken(e.target.value)} />
                 <button className="btn-primary btn-sm shrink-0" disabled={mpBusy} onClick={connectMp}>{mpBusy ? 'Conectando…' : 'Conectar'}</button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="card p-4">
+        <h2 className="font-bold">Atendente de WhatsApp (IA)</h2>
+        {wa ? (
+          <>
+            <p className="mt-2 rounded-xl bg-green-50 p-3 text-sm text-green-800">✅ WhatsApp conectado{wa.display_phone ? ` (${wa.display_phone})` : ''}. O atendente responde, anota o pedido e envia o Pix.</p>
+            {canEdit && (
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+                <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={wa.bot_enabled} onChange={(e) => toggleWaBot(e.target.checked)} /> Atendente automático ligado</label>
+                <button className="text-red-700 underline" onClick={disconnectWa}>Desconectar WhatsApp</button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-ink/60">Conecte o número de WhatsApp da loja (API oficial da Meta). O cliente conversa por texto ou áudio, escolhe os produtos, paga e o pedido cai no seu painel.</p>
+            {canEdit && (
+              <div className="space-y-2">
+                <input className="input" inputMode="numeric" placeholder="ID do número de telefone (Phone number ID)" value={waPid} onChange={(e) => setWaPid(e.target.value)} />
+                <input className="input" inputMode="numeric" placeholder="ID da conta do WhatsApp Business (opcional)" value={waWaba} onChange={(e) => setWaWaba(e.target.value)} />
+                <div className="flex gap-2">
+                  <input className="input" type="password" autoComplete="off" placeholder="Token de acesso permanente" value={waToken} onChange={(e) => setWaToken(e.target.value)} />
+                  <button className="btn-primary btn-sm shrink-0" disabled={waBusy} onClick={connectWa}>{waBusy ? 'Conectando…' : 'Conectar'}</button>
+                </div>
               </div>
             )}
           </>
