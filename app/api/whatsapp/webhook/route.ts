@@ -50,41 +50,58 @@ export async function POST(req: Request) {
           if (!id || !from) continue;
           const dup = await db.from('wa_processed').insert({ msg_id: id });
           if (dup.error) continue; // ja tratada (a Meta reenvia quando demora)
-          if (!account.bot_enabled) continue;
-
           const name = String((v.contacts ?? []).find((c: any) => c?.wa_id === from)?.profile?.name ?? '').slice(0, 80);
           const conv = await db.from('wa_conversations').upsert({ business_id: account.business_id, wa_phone: from, ...(name ? { customer_name: name } : {}), last_inbound_at: new Date().toISOString() }, { onConflict: 'business_id,wa_phone' }).select('id,history,bot_paused,customer_name,updated_at').single();
           if (conv.error || !conv.data) { console.error('wa conv', conv.error?.message); continue; }
-          // Um humano assumiu; se ninguem respondeu em 1 hora, o atendente volta sozinho.
-          if (conv.data.bot_paused) {
-            const stale = Date.now() - Date.parse(String(conv.data.updated_at ?? '')) > 60 * 60 * 1000;
-            if (!stale) continue;
-            await db.from('wa_conversations').update({ bot_paused: false }).eq('id', conv.data.id);
-          }
-
-          await markRead(account.token, pid, id);
+          const convId = conv.data.id as string;
+          const log = async (direction: 'in' | 'out_bot', body: string, unread?: boolean) => {
+            const r = await db.from('wa_messages').insert({ business_id: account.business_id, conversation_id: convId, direction, body: body.slice(0, 4000) });
+            if (r.error) return; // antes do SQL 13 a tabela nao existe: o atendente segue funcionando
+            await db.from('wa_conversations').update({ last_message: body.slice(0, 200), last_message_at: new Date().toISOString(), ...(unread === undefined ? {} : { unread }) }).eq('id', convId);
+          };
 
           let text = '';
           if (m.type === 'text') text = String(m.text?.body ?? '');
           else if (m.type === 'audio') {
             const t = await transcribeAudio(account.token, String(m.audio?.id ?? ''));
-            if (!t) { await sendText(account.token, pid, from, 'Não consegui ouvir seu áudio 😕 Pode escrever sua mensagem?'); continue; }
-            text = t;
+            if (!t) {
+              await log('in', '🎤 (áudio que não foi possível ouvir)', true);
+              if (account.bot_enabled && !conv.data.bot_paused) { await sendText(account.token, pid, from, 'Não consegui ouvir seu áudio 😕 Pode escrever sua mensagem?'); await log('out_bot', 'Não consegui ouvir seu áudio. Pode escrever sua mensagem?', true); }
+              continue;
+            }
+            text = '🎤 ' + t;
           } else if (m.type === 'interactive') text = String(m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title ?? '');
-          else { await sendText(account.token, pid, from, 'Por enquanto eu só entendo texto e áudio 🙂 Me conta o que você quer pedir!'); continue; }
+          else {
+            await log('in', `(mensagem do tipo ${String(m.type)})`, true);
+            if (account.bot_enabled && !conv.data.bot_paused) await sendText(account.token, pid, from, 'Por enquanto eu só entendo texto e áudio 🙂 Me conta o que você quer pedir!');
+            continue;
+          }
           if (!text.trim()) continue;
+          await log('in', text, true);
+
+          if (!account.bot_enabled) continue; // so registra; a loja atende na mao
+          // Um humano assumiu; se ninguem respondeu em 1 hora, o atendente volta sozinho.
+          if (conv.data.bot_paused) {
+            const stale = Date.now() - Date.parse(String(conv.data.updated_at ?? '')) > 60 * 60 * 1000;
+            if (!stale) continue;
+            await db.from('wa_conversations').update({ bot_paused: false }).eq('id', convId);
+          }
+
+          await markRead(account.token, pid, id);
+          const userText = text.replace(/^🎤 /, '');
 
           let out;
           try {
-            out = await runAgent({ businessId: account.business_id, phone: from, customerName: name || conv.data.customer_name || '', userText: text, history: Array.isArray(conv.data.history) ? conv.data.history : [], host, proto });
+            out = await runAgent({ businessId: account.business_id, phone: from, customerName: name || conv.data.customer_name || '', userText, history: Array.isArray(conv.data.history) ? conv.data.history : [], host, proto });
           } catch (e) {
             console.error('agent', e);
             await sendText(account.token, pid, from, 'Tive um probleminha aqui 😅 Pode repetir sua mensagem em instantes?');
+            await log('out_bot', 'Tive um probleminha aqui. Pode repetir sua mensagem em instantes?', true);
             continue;
           }
-          if (out.reply) await sendText(account.token, pid, from, out.reply);
-          for (const x of out.extra) await sendText(account.token, pid, from, x);
-          await db.from('wa_conversations').update({ history: out.history, bot_paused: out.handoff || undefined, updated_at: new Date().toISOString() }).eq('id', conv.data.id);
+          if (out.reply) { await sendText(account.token, pid, from, out.reply); await log('out_bot', out.reply, out.handoff); }
+          for (const x of out.extra) { await sendText(account.token, pid, from, x); await log('out_bot', x, out.handoff); }
+          await db.from('wa_conversations').update({ history: out.history, bot_paused: out.handoff || undefined, updated_at: new Date().toISOString() }).eq('id', convId);
         } catch (e) {
           console.error('wa message', e);
         }
