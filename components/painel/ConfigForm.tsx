@@ -26,6 +26,7 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   const [zName, setZName] = useState('');
   const [zFee, setZFee] = useState('');
   const [brand, setBrand] = useState<boolean | null>(null);
+  const [slugInput, setSlugInput] = useState<string | null>(null);
   const [mpOn, setMpOn] = useState<boolean | null>(null);
   const [mpToken, setMpToken] = useState('');
   const [mpBusy, setMpBusy] = useState(false);
@@ -115,6 +116,25 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
     if (error) return setErr(error.code === '23505' ? 'Já existe uma região com esse nome.' : 'Não foi possível adicionar.');
     setZName(''); setZFee(''); setErr('');
     load();
+  }
+  async function changeSlug() {
+    const next = (slugInput ?? b.slug).trim();
+    if (next === b.slug) return;
+    setErr(''); setMsg('');
+    if (!confirm(`Trocar o endereço da loja para ${next}.comanda.bridgeatravessia.com.br?\n\nO endereço antigo deixa de funcionar. Avise seus clientes e atualize os links do Instagram e do WhatsApp.`)) return;
+    setBusy(true);
+    const { error } = await supabaseBrowser().rpc('set_business_slug', { p_business: businessId, p_slug: next });
+    setBusy(false);
+    if (error) {
+      const m = error.message || '';
+      return setErr(/slug_taken/.test(m) ? 'Esse endereço já está em uso. Escolha outro.'
+        : /slug_reserved/.test(m) ? 'Esse nome é reservado pelo sistema. Escolha outro.'
+        : /slug_invalid/.test(m) ? 'Use de 3 a 40 letras minúsculas, números e hífen (sem hífen no começo ou no fim).'
+        : /forbidden|42501/.test(m) ? 'Só o dono ou gerente pode trocar o endereço.'
+        : 'Rode o SQL 11 no Supabase para liberar a troca de endereço.');
+    }
+    set('slug', next); setSlugInput(null);
+    setMsg('Endereço da loja alterado!');
   }
   async function connectMp() {
     setErr(''); setMsg('');
@@ -298,6 +318,18 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
       )}
       {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{err}</p>}
       {msg && <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{msg}</p>}
+
+      <section className="card p-4">
+        <h2 className="font-bold">Endereço da loja</h2>
+        <p className="mb-3 text-sm text-ink/60">É o link que você envia aos clientes.</p>
+        <p className="mb-2 break-all rounded-xl bg-sand p-3 text-sm font-semibold">{storeUrl(slugInput ?? b.slug)}</p>
+        {canEdit && (
+          <div className="flex gap-2">
+            <input className="input" maxLength={40} autoCapitalize="none" value={slugInput ?? b.slug} onChange={(e) => setSlugInput(e.target.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-{2,}/g, '-').replace(/^-/, '').slice(0, 40))} placeholder="nome-da-loja" />
+            <button className="btn-ghost btn-sm shrink-0" disabled={busy || (slugInput ?? b.slug) === b.slug || (slugInput ?? '').length < 3} onClick={changeSlug}>Alterar endereço</button>
+          </div>
+        )}
+      </section>
 
       <section className="card p-4">
         <h2 className="font-bold">Pagamento online (Pix)</h2>
