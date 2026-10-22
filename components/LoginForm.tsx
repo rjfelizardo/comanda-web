@@ -64,7 +64,8 @@ export default function LoginForm() {
     });
     if (error) {
       const m = String(error.message ?? '');
-      if (/rate limit|seconds|too many/i.test(m)) setError('Você pediu e-mails demais em pouco tempo. Aguarde cerca de 1 hora ou use outro caminho.');
+      if (/\b\d+ seconds/i.test(m)) setError('Aguarde 1 minuto antes de pedir outro e-mail. Toque uma vez só e espere chegar.');
+      else if (/rate limit|too many/i.test(m)) setError('Limite de e-mails atingido por enquanto. Tente de novo mais tarde.');
       else if (/not authorized/i.test(m)) setError('Este e-mail não está autorizado a receber mensagens ainda.');
       else setError('Não foi possível enviar o e-mail agora.');
     }
