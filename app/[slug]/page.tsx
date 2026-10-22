@@ -21,13 +21,13 @@ async function load(slug: string) {
 
   const [cats, prods, groups, opts, zones, open] = await Promise.all([
     db.from('categories').select('id,name,sort_order').eq('business_id', biz.id).order('sort_order').order('name'),
-    db
-      .from('products')
-      .select('id,category_id,name,description,base_price,photo_url,sort_order,allow_half')
-      .eq('business_id', biz.id)
-      .eq('is_available', true)
-      .order('sort_order')
-      .order('name'),
+    (async () => {
+      const q = (cols: string) =>
+        db.from('products').select(cols).eq('business_id', biz.id).eq('is_available', true).order('sort_order').order('name');
+      const r = await q('id,category_id,name,description,base_price,photo_url,sort_order,allow_half');
+      // Antes do SQL 04 a coluna allow_half nao existe: cai para a consulta antiga.
+      return r.error ? q('id,category_id,name,description,base_price,photo_url,sort_order') : r;
+    })(),
     db.from('product_option_groups').select('id,product_id,name,min_select,max_select,sort_order').eq('business_id', biz.id).order('sort_order'),
     db.from('product_options').select('id,group_id,name,price_delta,sort_order').eq('business_id', biz.id).eq('is_available', true).order('sort_order'),
     db.from('delivery_zones').select('id,name,fee,min_order,eta_min').eq('business_id', biz.id).order('name'),

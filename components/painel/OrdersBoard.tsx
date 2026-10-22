@@ -28,13 +28,13 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
   const load = useCallback(async () => {
     const supabase = supabaseBrowser();
     const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
-    const { data: os, error } = await supabase
-      .from('orders')
-      .select('id,code,status,fulfillment,customer_name,customer_phone,total,subtotal,delivery_fee,payment_method,payment_status,address,notes,change_for,created_at,discount,coupon_code,scheduled_for')
-      .eq('business_id', businessId)
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(150);
+    const cols = 'id,code,status,fulfillment,customer_name,customer_phone,total,subtotal,delivery_fee,payment_method,payment_status,address,notes,change_for,created_at,discount,scheduled_for';
+    const q = (c: string) =>
+      supabase.from('orders').select(c).eq('business_id', businessId).gte('created_at', since).order('created_at', { ascending: false }).limit(150);
+    let res = await q(cols + ',coupon_code');
+    // Antes do SQL 04 a coluna coupon_code nao existe: tenta sem ela.
+    if (res.error) res = await q(cols);
+    const { data: os, error } = res;
     if (error) {
       setError('Não foi possível carregar os pedidos.');
       setLoading(false);

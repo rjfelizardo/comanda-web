@@ -31,7 +31,11 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
     const s = supabaseBrowser();
     const [c, p, g, o] = await Promise.all([
       s.from('categories').select('id,name,sort_order').eq('business_id', businessId).order('sort_order').order('name'),
-      s.from('products').select('id,category_id,name,description,base_price,photo_url,is_available,allow_half').eq('business_id', businessId).order('sort_order').order('name'),
+      (async () => {
+        const q = (cols: string) => s.from('products').select(cols).eq('business_id', businessId).order('sort_order').order('name');
+        const r = await q('id,category_id,name,description,base_price,photo_url,is_available,allow_half');
+        return r.error ? q('id,category_id,name,description,base_price,photo_url,is_available') : r;
+      })(),
       s.from('product_option_groups').select('id,product_id,name,min_select,max_select').eq('business_id', businessId).order('sort_order'),
       s.from('product_options').select('id,group_id,name,price_delta,is_available').eq('business_id', businessId).order('sort_order'),
     ]);
