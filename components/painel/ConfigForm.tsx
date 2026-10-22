@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { uploadImage } from '@/lib/upload';
 import { brl, normalizePhone, WEEKDAYS } from '@/lib/format';
@@ -17,6 +18,7 @@ const num = (s: string) => {
 const hhmm = (t: string) => t.slice(0, 5);
 
 export default function ConfigForm({ businessId, canEdit }: { businessId: string; canEdit: boolean }) {
+  const router = useRouter();
   const [b, setB] = useState<any>(null);
   const [days, setDays] = useState<Day[]>(WEEKDAYS.map(() => ({ on: false, opens: '18:00', closes: '23:00' })));
   const [zones, setZones] = useState<Zone[]>([]);
@@ -107,6 +109,7 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
     setBusy(false);
     setMsg('Salvo!');
     load();
+    router.refresh();
   }
 
   async function addZone() {

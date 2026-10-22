@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabase/server';
 
-export type Membership = { business_id: string; role: string; name: string; slug: string };
+export type Membership = { business_id: string; role: string; name: string; slug: string; logo_url?: string | null };
 
 export async function getContext() {
   const supabase = supabaseServer();
@@ -14,13 +14,13 @@ export async function getContext() {
   const ids = (members ?? []).map((m: any) => m.business_id);
   let businesses: any[] = [];
   if (ids.length) {
-    const { data } = await supabase.from('businesses').select('id,name,slug').in('id', ids);
+    const { data } = await supabase.from('businesses').select('id,name,slug,logo_url').in('id', ids);
     businesses = data ?? [];
   }
   const list: Membership[] = (members ?? [])
     .map((m: any) => {
       const b = businesses.find((x) => x.id === m.business_id);
-      return b ? { business_id: m.business_id, role: m.role, name: b.name, slug: b.slug } : null;
+      return b ? { business_id: m.business_id, role: m.role, name: b.name, slug: b.slug, logo_url: b.logo_url ?? null } : null;
     })
     .filter(Boolean) as Membership[];
 
