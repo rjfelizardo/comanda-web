@@ -10,7 +10,7 @@ const FEATURES = [
   { i: '📸', t: 'Cardápio pronto em minutos', d: 'Importe produtos por planilha e as fotos de uma vez só, pelo nome do arquivo. Sem cadastrar item por item.' },
   { i: '🎟️', t: 'Cupons, horários e agendamento', d: 'Crie cupons de desconto, defina horário de funcionamento e deixe o cliente agendar o pedido.' },
   { i: '🖨️', t: 'Impressão e relatórios', d: 'Imprima o pedido pra cozinha e acompanhe vendas, ticket médio e produtos mais pedidos.' },
-  { i: '🔗', t: 'Seu link, sua marca', d: 'Endereço próprio, tipo suapizzaria.comanda.bridgeatravessia.com.br, pra colocar na bio, no WhatsApp e no QR Code.' },
+  { i: '🔗', t: 'Seu link, sua marca', d: 'Endereço próprio, tipo suapizzaria.comanda…, pra colocar na bio, no WhatsApp e no QR Code.' },
 ];
 
 const STEPS = [
@@ -40,7 +40,6 @@ export default function Home() {
         </div>
         <nav className="flex items-center gap-2">
           <Link href="/login" className="btn-ghost btn-sm">Entrar</Link>
-          <Link href={CTA} className="btn-primary btn-sm hidden sm:inline-flex">Criar minha loja</Link>
         </nav>
       </header>
 
@@ -104,10 +103,10 @@ export default function Home() {
         <p className="mx-auto mt-3 max-w-2xl text-center text-ink/70">Feito pra quem vende por WhatsApp e quer parar de anotar pedido no braço.</p>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f) => (
-            <div key={f.t} className="card p-5">
+            <div key={f.t} className="card min-w-0 p-5">
               <div className="text-3xl">{f.i}</div>
               <h3 className="mt-3 text-lg font-extrabold leading-tight">{f.t}</h3>
-              <p className="mt-2 text-sm text-ink/70">{f.d}</p>
+              <p className="mt-2 break-words text-sm text-ink/70">{f.d}</p>
             </div>
           ))}
         </div>
