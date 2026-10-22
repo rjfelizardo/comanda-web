@@ -398,10 +398,11 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
       <FlavorPicker
         title={`Escolha até ${maxFlavors} sabores`}
         subtitle={`${product.name} já é o 1º sabor. Você pode somar até ${maxExtra}.`}
-        candidates={available}
+        candidates={halves}
+        sizeName={primaryOpt?.name}
         initial={extraIds}
         max={maxExtra}
-        unitOf={(h) => priceOf(h) ?? 0}
+        unitOf={(h) => priceOf(h)}
         onCancel={() => setPicking(false)}
         onConfirm={(ids) => { setExtraIds(ids); setPicking(false); }}
       />
@@ -519,10 +520,10 @@ function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; h
 
 /* ---------- Escolha de sabores (dentro da janela do pedido) ---------- */
 function FlavorPicker({
-  title, subtitle, candidates, initial, max, unitOf, onCancel, onConfirm,
+  title, subtitle, candidates, initial, max, unitOf, sizeName, onCancel, onConfirm,
 }: {
-  title: string; subtitle: string; candidates: Product[]; initial: string[]; max: number;
-  unitOf: (p: Product) => number; onCancel: () => void; onConfirm: (ids: string[]) => void;
+  sizeName?: string; title: string; subtitle: string; candidates: Product[]; initial: string[]; max: number;
+  unitOf: (p: Product) => number | null; onCancel: () => void; onConfirm: (ids: string[]) => void;
 }) {
   const [picked, setPicked] = useState<string[]>(initial);
   const [q, setQ] = useState('');
@@ -540,7 +541,9 @@ function FlavorPicker({
       <ul className="grid gap-2 pb-4">
         {list.map((p) => {
           const on = picked.includes(p.id);
-          const full = !on && picked.length >= max;
+          const price = unitOf(p);
+          const noSize = price === null;
+          const full = (!on && picked.length >= max) || noSize;
           return (
             <li key={p.id}>
               <button
@@ -556,7 +559,7 @@ function FlavorPicker({
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{p.name}</span>
                   {p.description && <span className="line-clamp-2 block text-xs text-ink/60">{p.description}</span>}
-                  <span className="block text-sm text-ink/80">{brl(unitOf(p))}</span>
+                  <span className="block text-sm text-ink/80">{noSize ? `Sem tamanho ${sizeName ?? ''}`.trim() : brl(price)}</span>
                 </span>
                 <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border ${on ? 'border-brand bg-brand text-white' : 'border-ink/30'}`}>{on ? '✓' : ''}</span>
               </button>
