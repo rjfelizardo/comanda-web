@@ -5,6 +5,6 @@ export function supabaseAnon() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { db: { schema: 'comanda' }, auth: { persistSession: false, autoRefreshToken: false } }
+    { db: { schema: 'comanda' }, global: { fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, cache: 'no-store' }) }, auth: { persistSession: false, autoRefreshToken: false } }
   );
 }

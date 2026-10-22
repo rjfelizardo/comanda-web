@@ -5,6 +5,8 @@ import Store from '@/components/Store';
 import type { Business, Category, Group, Product, Zone } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 async function load(slug: string) {
   const db = supabaseAnon();
