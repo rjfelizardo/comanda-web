@@ -6,7 +6,7 @@ import { uploadImage } from '@/lib/upload';
 import { brl, normalizePhone, WEEKDAYS } from '@/lib/format';
 
 type Day = { on: boolean; opens: string; closes: string };
-type Zone = { id: string; name: string; fee: number; min_order: number; eta_min: number | null; is_active: boolean };
+type Zone = { id: string; name: string; fee: number; min_order: number; eta_min: number | null; is_active: boolean; max_km?: number | null };
 
 const num = (s: string) => {
   const n = Number(String(s).replace(',', '.'));
@@ -24,13 +24,19 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   const [zName, setZName] = useState('');
   const [zFee, setZFee] = useState('');
   const [brand, setBrand] = useState<boolean | null>(null);
+  const [bKm, setBKm] = useState('');
+  const [bFee, setBFee] = useState('');
 
   const load = useCallback(async () => {
     const s = supabaseBrowser();
     const [bi, hs, zs] = await Promise.all([
       s.from('businesses').select('*').eq('id', businessId).single(),
       s.from('business_hours').select('weekday,opens,closes').eq('business_id', businessId),
-      s.from('delivery_zones').select('id,name,fee,min_order,eta_min,is_active').eq('business_id', businessId).order('name'),
+      (async () => {
+        const q = (cols: string) => s.from('delivery_zones').select(cols).eq('business_id', businessId).order('name');
+        const r = await q('id,name,fee,min_order,eta_min,is_active,max_km');
+        return r.error ? q('id,name,fee,min_order,eta_min,is_active') : r;
+      })(),
     ]);
     const x: any = bi.data;
     if (x) setB({ ...x, min_order: String(x.min_order).replace('.', ','), whatsapp_contact: x.whatsapp_contact ?? '' });
@@ -98,6 +104,39 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
     const { error } = await supabaseBrowser().from('delivery_zones').insert({ business_id: businessId, name: zName.trim(), fee });
     if (error) return setErr(error.code === '23505' ? 'Já existe uma região com esse nome.' : 'Não foi possível adicionar.');
     setZName(''); setZFee(''); setErr('');
+    load();
+  }
+  const kmMode = b.delivery_mode === 'km';
+  const SQL09 = 'Rode o SQL 09 no Supabase para usar a taxa por distância.';
+  async function setMode(m: 'zones' | 'km') {
+    setErr(''); setMsg('');
+    const { error } = await supabaseBrowser().from('businesses').update({ delivery_mode: m }).eq('id', businessId);
+    if (error) return setErr(SQL09);
+    set('delivery_mode', m);
+  }
+  async function locateStore() {
+    setErr(''); setMsg('');
+    const q = [b.address_text, b.city, b.state, 'Brasil'].filter((x: string) => x && String(x).trim()).join(', ');
+    if (!b.address_text?.trim()) return setErr('Preencha e salve o endereço da loja primeiro (rua, número e bairro).');
+    setBusy(true);
+    try {
+      const res = await fetch('/api/geocode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q }) });
+      const j = await res.json();
+      if (!res.ok) { setBusy(false); return setErr(j.error || 'Não foi possível localizar.'); }
+      const { error } = await supabaseBrowser().from('businesses').update({ store_lat: j.lat, store_lng: j.lng }).eq('id', businessId);
+      if (error) { setBusy(false); return setErr(SQL09); }
+      set('store_lat', j.lat); set('store_lng', j.lng);
+      setMsg('Loja localizada! Confira no mapa pelo link abaixo.');
+    } catch { setErr('Sem conexão.'); }
+    setBusy(false);
+  }
+  async function addBand() {
+    const km = num(bKm);
+    const fee = bFee.trim() === '' ? 0 : num(bFee);
+    if (!bKm.trim() || Number.isNaN(km) || km <= 0 || Number.isNaN(fee)) return setErr('Informe a distância (km) e uma taxa válida.');
+    const { error } = await supabaseBrowser().from('delivery_zones').insert({ business_id: businessId, name: `Até ${String(km).replace('.', ',')} km`, fee, max_km: km });
+    if (error) return setErr(error.code === '23505' ? 'Já existe uma faixa com essa distância.' : SQL09);
+    setBKm(''); setBFee(''); setErr('');
     load();
   }
   async function delZone(id: string) {
@@ -233,22 +272,59 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
 
       <section className="card p-4">
         <h2 className="font-bold">Regiões de entrega e taxas</h2>
-        <p className="mb-3 text-sm text-ink/60">Se você cadastrar regiões, o cliente precisa escolher uma na hora do pedido. Sem regiões, a entrega não tem taxa.</p>
-        <ul className="divide-y divide-sand text-sm">
-          {zones.map((z) => (
-            <li key={z.id} className="flex items-center justify-between py-2">
-              <span className="font-medium">{z.name} <span className="text-ink/60">— {z.fee > 0 ? brl(z.fee) : 'Grátis'}</span></span>
-              {canEdit && <button onClick={() => delZone(z.id)} className="text-red-700 underline">Apagar</button>}
-            </li>
-          ))}
-          {zones.length === 0 && <li className="py-2 text-ink/60">Nenhuma região cadastrada.</li>}
-        </ul>
-        {canEdit && (
-          <div className="mt-3 flex gap-2">
-            <input className="input" placeholder="Bairro (vários: Pituba, Itaigara)" value={zName} onChange={(e) => setZName(e.target.value)} maxLength={80} />
-            <input className="input max-w-[7rem]" placeholder="Taxa R$" inputMode="decimal" value={zFee} onChange={(e) => setZFee(e.target.value)} />
-            <button className="btn-ghost btn-sm shrink-0" onClick={addZone}>Adicionar</button>
-          </div>
+        <div className="my-3 grid grid-cols-2 gap-2">
+          <button type="button" disabled={!canEdit} onClick={() => setMode('zones')} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${!kmMode ? 'border-brand bg-brand/10' : 'border-sand bg-white'}`}>Por bairro</button>
+          <button type="button" disabled={!canEdit} onClick={() => setMode('km')} className={`rounded-xl border px-3 py-2 text-sm font-semibold ${kmMode ? 'border-brand bg-brand/10' : 'border-sand bg-white'}`}>Por distância (km)</button>
+        </div>
+        {kmMode ? (
+          <>
+            <p className="mb-3 text-sm text-ink/60">O cliente informa o CEP e o número; calculamos a distância em linha reta até a loja e cobramos a faixa correspondente. Fora da última faixa, não entregamos.</p>
+            <div className="mb-3 rounded-xl bg-sand p-3 text-sm">
+              <p className="font-semibold">Localização da loja</p>
+              {b.store_lat != null && b.store_lng != null ? (
+                <p className="mt-1 text-ink/70">Localizada. <a className="underline" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${b.store_lat}&mlon=${b.store_lng}#map=17/${b.store_lat}/${b.store_lng}`}>Ver no mapa</a></p>
+              ) : (
+                <p className="mt-1 text-red-700">Ainda não localizada. Sem isso o cálculo não funciona.</p>
+              )}
+              {canEdit && <button className="btn-ghost btn-sm mt-2" disabled={busy} onClick={locateStore}>📍 Localizar loja pelo endereço cadastrado</button>}
+            </div>
+            <ul className="divide-y divide-sand text-sm">
+              {zones.filter((z) => z.max_km != null).sort((a, c) => (a.max_km ?? 0) - (c.max_km ?? 0)).map((z) => (
+                <li key={z.id} className="flex items-center justify-between py-2">
+                  <span className="font-medium">{z.name} <span className="text-ink/60">— {z.fee > 0 ? brl(z.fee) : 'Grátis'}</span></span>
+                  {canEdit && <button onClick={() => delZone(z.id)} className="text-red-700 underline">Apagar</button>}
+                </li>
+              ))}
+              {zones.filter((z) => z.max_km != null).length === 0 && <li className="py-2 text-ink/60">Nenhuma faixa cadastrada.</li>}
+            </ul>
+            {canEdit && (
+              <div className="mt-3 flex gap-2">
+                <input className="input max-w-[7rem]" placeholder="Até km" inputMode="decimal" value={bKm} onChange={(e) => setBKm(e.target.value)} />
+                <input className="input max-w-[7rem]" placeholder="Taxa R$" inputMode="decimal" value={bFee} onChange={(e) => setBFee(e.target.value)} />
+                <button className="btn-ghost btn-sm shrink-0" onClick={addBand}>Adicionar faixa</button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-ink/60">Se você cadastrar regiões, o cliente precisa escolher uma na hora do pedido. Sem regiões, a entrega não tem taxa.</p>
+            <ul className="divide-y divide-sand text-sm">
+              {zones.filter((z) => z.max_km == null).map((z) => (
+                <li key={z.id} className="flex items-center justify-between py-2">
+                  <span className="font-medium">{z.name} <span className="text-ink/60">— {z.fee > 0 ? brl(z.fee) : 'Grátis'}</span></span>
+                  {canEdit && <button onClick={() => delZone(z.id)} className="text-red-700 underline">Apagar</button>}
+                </li>
+              ))}
+              {zones.filter((z) => z.max_km == null).length === 0 && <li className="py-2 text-ink/60">Nenhuma região cadastrada.</li>}
+            </ul>
+            {canEdit && (
+              <div className="mt-3 flex gap-2">
+                <input className="input" placeholder="Bairro (vários: Pituba, Itaigara)" value={zName} onChange={(e) => setZName(e.target.value)} maxLength={80} />
+                <input className="input max-w-[7rem]" placeholder="Taxa R$" inputMode="decimal" value={zFee} onChange={(e) => setZFee(e.target.value)} />
+                <button className="btn-ghost btn-sm shrink-0" onClick={addZone}>Adicionar</button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>

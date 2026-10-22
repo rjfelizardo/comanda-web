@@ -34,12 +34,20 @@ async function load(slug: string) {
       // Antes do SQL 07 a coluna flavors nao existe.
       return r.error ? q('id,group_id,name,price_delta,sort_order') : r;
     })(),
-    db.from('delivery_zones').select('id,name,fee,min_order,eta_min').eq('business_id', biz.id).order('name'),
+    (async () => {
+      const q = (cols: string) => db.from('delivery_zones').select(cols).eq('business_id', biz.id).order('name');
+      const r = await q('id,name,fee,min_order,eta_min,max_km');
+      // Antes do SQL 09 a coluna max_km nao existe.
+      return r.error ? q('id,name,fee,min_order,eta_min') : r;
+    })(),
     db.rpc('is_business_open', { p_business: biz.id }),
     db.from('business_hours').select('weekday,opens,closes').eq('business_id', biz.id),
     db.rpc('public_coupons', { p_business: biz.id }),
   ]);
 
+  const dm = await db.from('businesses').select('delivery_mode').eq('id', biz.id).maybeSingle();
+  const kmMode = !dm.error && (dm.data as any)?.delivery_mode === 'km';
+  biz.delivery_mode = kmMode ? 'km' : 'zones';
   const groupList = (groups.data ?? []) as any[];
   const optList = (opts.data ?? []) as any[];
   const products: Product[] = ((prods.data ?? []) as any[]).map((p) => ({
@@ -66,7 +74,10 @@ async function load(slug: string) {
     business: { ...biz, min_order: Number(biz.min_order) } as Business,
     categories: (cats.data ?? []) as Category[],
     products,
-    zones: ((zones.data ?? []) as any[]).map((z) => ({ ...z, fee: Number(z.fee), min_order: Number(z.min_order) })) as Zone[],
+    zones: ((zones.data ?? []) as any[])
+      .filter((z) => (kmMode ? z.max_km != null : z.max_km == null))
+      .map((z) => ({ ...z, fee: Number(z.fee), min_order: Number(z.min_order), max_km: z.max_km == null ? null : Number(z.max_km) }))
+      .sort((a, b) => (kmMode ? (a.max_km ?? 0) - (b.max_km ?? 0) : 0)) as Zone[],
     isOpen: open.data === true,
     coupons: ((couponsRes.error ? [] : couponsRes.data ?? []) as any[]).map((c) => ({ ...c, value: Number(c.value), min_order: Number(c.min_order) })) as PublicCoupon[],
     hours: ((hoursRes.data ?? []) as any[]).map((h) => ({ weekday: h.weekday, opens: String(h.opens).slice(0, 5), closes: String(h.closes).slice(0, 5) })) as Hours[],

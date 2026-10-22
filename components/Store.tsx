@@ -281,12 +281,12 @@ export default function Store({ business, categories, products, zones, isOpen, h
 
       {feeOpen && (
         <Sheet title="Taxa e tempo de entrega" onClose={() => setFeeOpen(false)}>
-          <p className="mb-3 text-sm text-ink/70">Escolha seu bairro ou região para ver a taxa e o tempo estimado. Ficamos com essa escolha para o seu pedido.</p>
+          <p className="mb-3 text-sm text-ink/70">{business.delivery_mode === 'km' ? 'A taxa depende da distância até o seu endereço. Você calcula na hora do pedido, informando o CEP.' : 'Escolha seu bairro ou região para ver a taxa e o tempo estimado. Ficamos com essa escolha para o seu pedido.'}</p>
           <div className="grid gap-2">
             {zones.map((z) => (
               <button
                 key={z.id}
-                onClick={() => { setMyZoneId(z.id); try { localStorage.setItem(`comanda-zona-${business.id}`, z.id); } catch {} setFeeOpen(false); }}
+                onClick={() => { if (business.delivery_mode === 'km') return; setMyZoneId(z.id); try { localStorage.setItem(`comanda-zona-${business.id}`, z.id); } catch {} setFeeOpen(false); }}
                 className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left ${myZoneId === z.id ? 'border-brand bg-brand/10' : 'border-sand bg-white'}`}
               >
                 <span className="font-medium">{z.name}{z.min_order > 0 && <span className="block text-xs text-ink/60">Pedido mínimo {brl(z.min_order)}</span>}</span>
@@ -633,10 +633,11 @@ function Checkout({
 
   useEffect(() => {
     try {
+      if (business.delivery_mode === 'km') return;
       const z = localStorage.getItem(`comanda-zona-${business.id}`);
       if (z && zones.some((x) => x.id === z)) setZoneId(z);
     } catch {}
-  }, [business.id, zones]);
+  }, [business.id, business.delivery_mode, zones]);
 
   useEffect(() => {
     try {
@@ -649,9 +650,31 @@ function Checkout({
     } catch {}
   }, []);
 
+  const kmMode = business.delivery_mode === 'km';
+  const [kmMsg, setKmMsg] = useState('');
+  const [kmInfo, setKmInfo] = useState('');
+  const [kmBusy, setKmBusy] = useState(false);
+  // endereço mudou -> a taxa calculada deixa de valer
+  useEffect(() => { if (kmMode) { setZoneId(''); setKmMsg(''); setKmInfo(''); } }, [kmMode, cep, street, number, neighborhood]);
+
+  async function calcKm() {
+    if (!street.trim() || !number.trim()) return setKmMsg('Informe rua e número para calcular.');
+    setKmBusy(true); setKmMsg(''); setKmInfo('');
+    try {
+      const res = await fetch('/api/delivery/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ business_id: business.id, address: { street, number, neighborhood, cep } }) });
+      const j = await res.json();
+      if (!res.ok) setKmMsg(j.error || 'Não foi possível calcular a taxa.');
+      else {
+        setZoneId(j.zone.id);
+        setKmInfo(`${String(j.km).replace('.', ',')} km · ${j.zone.fee > 0 ? brl(j.zone.fee) : 'entrega grátis'}${j.zone.eta_min ? ` · ~${j.zone.eta_min} min` : ''}`);
+      }
+    } catch { setKmMsg('Sem conexão. Tente de novo.'); }
+    setKmBusy(false);
+  }
+
   // bairro digitado ou vindo do CEP -> escolhe a região (e a taxa) automaticamente
   useEffect(() => {
-    if (!neighborhood.trim() || zones.length === 0) return;
+    if (kmMode || !neighborhood.trim() || zones.length === 0) return;
     const z = matchZone(zones, neighborhood);
     if (z) { setZoneId(z.id); setCepMsg(''); }
   }, [neighborhood, zones]);
@@ -668,7 +691,7 @@ function Checkout({
       if (j.logradouro) setStreet(j.logradouro);
       if (j.bairro) setNeighborhood(j.bairro);
       const z = j.bairro ? matchZone(zones, j.bairro) : undefined;
-      setCepMsg(z ? '' : zones.length > 0 ? `Não encontramos a taxa para ${j.bairro || 'esse bairro'}. Escolha a região abaixo.` : '');
+      setCepMsg(z || kmMode ? '' : zones.length > 0 ? `Não encontramos a taxa para ${j.bairro || 'esse bairro'}. Escolha a região abaixo.` : '');
     } catch {
       setCepMsg('Não foi possível buscar o CEP. Preencha manualmente.');
     }
@@ -723,7 +746,7 @@ function Checkout({
     const digits = onlyDigits(phone);
     if (digits.length < 10) return setError('Informe o WhatsApp com DDD.');
     if (fulfillment === 'delivery') {
-      if (zones.length > 0 && !zoneId) return setError('Escolha a região de entrega.');
+      if (zones.length > 0 && !zoneId) return setError(kmMode ? 'Calcule a taxa de entrega com seu endereço.' : 'Escolha a região de entrega.');
       if (street.trim().length < 3) return setError('Informe a rua do endereço.');
     }
     setBusy(true);
@@ -737,7 +760,7 @@ function Checkout({
           phone,
           fulfillment,
           zone_id: fulfillment === 'delivery' && zoneId ? zoneId : null,
-          address: { street, number, complement, neighborhood, reference },
+          address: { street, number, complement, neighborhood, reference, cep },
           notes,
           change_for: change ? Number(change.replace(',', '.')) : null,
           coupon_code: coupon ? coupon.code : null,
@@ -816,7 +839,7 @@ function Checkout({
               <input id="cep" className="input" inputMode="numeric" placeholder="00000-000" value={cep} onChange={(e) => lookupCep(e.target.value)} autoComplete="postal-code" />
               {cepMsg && <p className="mt-1 text-sm text-ink/70">{cepMsg}</p>}
             </div>
-            {zones.length > 0 && (
+            {zones.length > 0 && !kmMode && (
               <div>
                 <label className="label" htmlFor="zona">Região de entrega</label>
                 <select id="zona" className="input" value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
@@ -850,6 +873,13 @@ function Checkout({
                 <input id="comp" className="input" value={complement} onChange={(e) => setComplement(e.target.value)} />
               </div>
             </div>
+            {kmMode && zones.length > 0 && (
+              <div className="rounded-xl border border-sand p-3">
+                <button type="button" className="btn-ghost w-full" disabled={kmBusy} onClick={calcKm}>{kmBusy ? 'Calculando…' : '📍 Calcular taxa de entrega'}</button>
+                {kmInfo && <p className="mt-2 text-center text-sm font-semibold text-green-800">{kmInfo}</p>}
+                {kmMsg && <p className="mt-2 text-center text-sm text-red-700">{kmMsg}</p>}
+              </div>
+            )}
             <div>
               <label className="label" htmlFor="ref">Ponto de referência</label>
               <input id="ref" className="input" value={reference} onChange={(e) => setReference(e.target.value)} />
@@ -923,7 +953,7 @@ function Checkout({
 
         <dl className="space-y-1 rounded-xl bg-sand/60 p-4 text-sm">
           <div className="flex justify-between"><dt>Itens</dt><dd>{brl(subtotal)}</dd></div>
-          {fulfillment === 'delivery' && <div className="flex justify-between"><dt>Entrega</dt><dd>{zone ? (fee > 0 ? brl(fee) : 'Grátis') : 'Escolha a região'}</dd></div>}
+          {fulfillment === 'delivery' && <div className="flex justify-between"><dt>Entrega</dt><dd>{zone ? (fee > 0 ? brl(fee) : 'Grátis') : kmMode ? 'Calcule a taxa' : 'Escolha a região'}</dd></div>}
           {discount > 0 && <div className="flex justify-between text-green-700"><dt>Desconto</dt><dd>− {brl(discount)}</dd></div>}
           <div className="flex justify-between text-base font-extrabold"><dt>Total</dt><dd>{brl(total)}</dd></div>
         </dl>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { normalizePhone } from '@/lib/format';
+import { deliveryMode, quoteDelivery, QUOTE_MESSAGES } from '@/lib/deliveryQuote';
 
 export const runtime = 'nodejs';
 
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
           complement: str(a.complement, 80),
           neighborhood: str(a.neighborhood, 80),
           reference: str(a.reference, 120),
+          ...(str(a.cep, 12) ? { cep: str(a.cep, 12) } : {}),
         }
       : null;
 
@@ -93,6 +95,13 @@ export async function POST(req: Request) {
   const scheduled = Number.isFinite(schedMs) ? new Date(schedMs).toISOString() : '';
   try {
     const db = supabaseAdmin();
+    let zoneId = str(b.zone_id, 60) || null;
+    // Entrega por distancia: o servidor refaz o calculo e ignora a regiao enviada pelo navegador.
+    if (fulfillment === 'delivery' && (await deliveryMode(db, str(b.business_id, 60))) === 'km') {
+      const q = await quoteDelivery(db, str(b.business_id, 60), { street: address!.street, number: address!.number, neighborhood: address!.neighborhood, cep: str(a.cep, 12) });
+      if (!q.ok) return NextResponse.json({ error: QUOTE_MESSAGES[q.code] }, { status: 422 });
+      zoneId = q.band.id;
+    }
     const { data, error } = await db.rpc('place_order', {
       p_business_id: str(b.business_id, 60),
       p_customer_name: str(b.name, 80),
@@ -101,7 +110,7 @@ export async function POST(req: Request) {
       p_payment_method: 'on_delivery',
       p_source: 'web',
       p_address: address,
-      p_zone_id: str(b.zone_id, 60) || null,
+      p_zone_id: zoneId,
       p_notes: str(b.notes, 500) || null,
       p_change_for: Number.isFinite(change) && change > 0 ? change : null,
       p_items: cleanItems,
