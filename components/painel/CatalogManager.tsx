@@ -219,6 +219,7 @@ function ProductEditor({
             <div>
               <label className="label">Preço base (R$)</label>
               <input className="input" inputMode="decimal" placeholder="0,00" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <p className="mt-1 text-xs text-ink/60">Se o preço muda por tamanho, deixe 0 e coloque o valor de cada tamanho nas opções.</p>
             </div>
             <div>
               <label className="label">Categoria</label>
@@ -304,7 +305,7 @@ function GroupBox({ g, opts, businessId, reload }: { g: Grp; opts: Opt[]; busine
       </ul>
       <div className="mt-2 flex gap-2">
         <input className="input" placeholder="Opção (ex.: Grande)" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
-        <input className="input max-w-[7rem]" placeholder="+ R$" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+        <input className="input max-w-[7rem]" placeholder="Valor R$ (soma ao base)" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
         <button className="btn-ghost btn-sm shrink-0" onClick={add}>+</button>
       </div>
       {err && <p className="mt-1 text-sm text-red-700">{err}</p>}
