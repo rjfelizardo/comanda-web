@@ -11,6 +11,7 @@ export default function LoginForm() {
   const [mode, setMode] = useState<'login' | 'cadastro'>(params.get('modo') === 'cadastro' ? 'cadastro' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -58,7 +59,7 @@ export default function LoginForm() {
     setInfo('');
     if (!email.includes('@')) return setError('Digite seu e-mail acima para receber o link.');
     const { error } = await supabaseBrowser().auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${location.origin}/auth/callback?next=/painel/config`,
+      redirectTo: `${location.origin}/auth/callback?next=/nova-senha`,
     });
     if (error) setError('Não foi possível enviar o e-mail agora.');
     else setInfo('Se esse e-mail tiver conta, enviamos um link para criar nova senha.');
@@ -92,7 +93,12 @@ export default function LoginForm() {
         </div>
         <div>
           <label className="label" htmlFor="senha">Senha</label>
-          <input id="senha" type="password" required minLength={8} className="input" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <div className="relative">
+            <input id="senha" type={show ? 'text' : 'password'} required minLength={8} className="input pr-20" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="button" onClick={() => setShow((v) => !v)} aria-pressed={show} className="absolute inset-y-0 right-2 my-auto h-9 rounded-full px-3 text-sm font-semibold text-brand-dark">
+              {show ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
         </div>
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         {info && <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{info}</p>}
