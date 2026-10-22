@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { normalizePhone } from '@/lib/format';
 import { deliveryMode, quoteDelivery, QUOTE_MESSAGES } from '@/lib/deliveryQuote';
+import { expirationIso, getToken, mpFetch } from '@/lib/mercadopago';
 
 export const runtime = 'nodejs';
 
@@ -22,6 +23,8 @@ const MESSAGES: Record<string, string> = {
   invalid_name: 'Informe seu nome.',
   invalid_fulfillment: 'Escolha entrega ou retirada.',
   delivery_not_accepted: 'Esta loja não faz entrega no momento.',
+  pix_not_available: 'Esta loja ainda não aceita Pix.',
+  pix_failed: 'Não foi possível gerar o Pix agora. Tente novamente ou pague na entrega.',
   pickup_not_accepted: 'Esta loja não aceita retirada no momento.',
   business_closed: 'A loja está fechada agora.',
   invalid_items: 'Seu carrinho está vazio ou inválido.',
@@ -90,12 +93,18 @@ export async function POST(req: Request) {
       : null;
 
   const change = Number(b.change_for);
+  const pix = b.payment === 'pix';
   const coupon = str(b.coupon_code, 20).toUpperCase().replace(/[^A-Z0-9]/g, '');
   const schedMs = typeof b.scheduled_for === 'string' ? Date.parse(b.scheduled_for) : NaN;
   const scheduled = Number.isFinite(schedMs) ? new Date(schedMs).toISOString() : '';
   try {
     const db = supabaseAdmin();
     let zoneId = str(b.zone_id, 60) || null;
+    let mpToken: string | null = null;
+    if (pix) {
+      mpToken = await getToken(db, str(b.business_id, 60));
+      if (!mpToken) return NextResponse.json({ error: MESSAGES.pix_not_available }, { status: 422 });
+    }
     // Entrega por distancia: o servidor refaz o calculo e ignora a regiao enviada pelo navegador.
     if (fulfillment === 'delivery' && (await deliveryMode(db, str(b.business_id, 60))) === 'km') {
       const q = await quoteDelivery(db, str(b.business_id, 60), { street: address!.street, number: address!.number, neighborhood: address!.neighborhood, cep: str(a.cep, 12) });
@@ -107,12 +116,12 @@ export async function POST(req: Request) {
       p_customer_name: str(b.name, 80),
       p_customer_phone: normalizePhone(str(b.phone, 30)),
       p_fulfillment: fulfillment,
-      p_payment_method: 'on_delivery',
+      p_payment_method: pix ? 'online' : 'on_delivery',
       p_source: 'web',
       p_address: address,
       p_zone_id: zoneId,
       p_notes: str(b.notes, 500) || null,
-      p_change_for: Number.isFinite(change) && change > 0 ? change : null,
+      p_change_for: !pix && Number.isFinite(change) && change > 0 ? change : null,
       p_items: cleanItems,
       ...(coupon ? { p_coupon_code: coupon } : {}),
       ...(scheduled ? { p_scheduled_for: scheduled } : {}),
@@ -124,7 +133,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: known ?? 'Não foi possível enviar o pedido. Tente novamente.' }, { status: known ? 422 : 500 });
     }
     const row = Array.isArray(data) ? data[0] : data;
-    return NextResponse.json({ code: row.code, total: Number(row.total) });
+    if (!pix || !mpToken) return NextResponse.json({ code: row.code, total: Number(row.total) });
+
+    // Pix: cria a cobranca no Mercado Pago da loja. Se falhar, o pedido e cancelado (nao fica pedido fantasma).
+    const bizId = str(b.business_id, 60);
+    const { data: ord } = await db.from('orders').select('id').eq('business_id', bizId).eq('code', row.code).maybeSingle();
+    const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '';
+    const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+    const pay = ord
+      ? await mpFetch(mpToken, '/v1/payments', {
+          method: 'POST',
+          headers: { 'X-Idempotency-Key': ord.id },
+          body: JSON.stringify({
+            transaction_amount: Number(row.total),
+            description: `Pedido ${row.code}`,
+            payment_method_id: 'pix',
+            external_reference: ord.id,
+            date_of_expiration: expirationIso(30),
+            notification_url: `${proto}://${host}/api/mp/webhook?b=${bizId}`,
+            payer: { email: `pedido-${String(row.code).toLowerCase()}@bridgeatravessia.com.br`, first_name: str(b.name, 40) || 'Cliente' },
+          }),
+        })
+      : null;
+    const tx = pay?.json?.point_of_interaction?.transaction_data;
+    if (!ord || !pay || !pay.ok || !tx?.qr_code) {
+      console.error('mp pix', pay?.status, JSON.stringify(pay?.json ?? {}).slice(0, 400));
+      if (ord) await db.rpc('set_order_status', { p_order_id: ord.id, p_status: 'cancelled' });
+      return NextResponse.json({ error: MESSAGES.pix_failed }, { status: 502 });
+    }
+    const expires = pay.json.date_of_expiration ?? null;
+    await db.from('orders').update({ pix_code: tx.qr_code, pix_qr: tx.qr_code_base64 ?? null, pix_expires_at: expires, mp_payment_id: String(pay.json.id) }).eq('id', ord.id);
+    return NextResponse.json({ code: row.code, total: Number(row.total), pix: { code: tx.qr_code, qr: tx.qr_code_base64 ?? null, expires_at: expires } });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: 'Serviço indisponível no momento.' }, { status: 500 });

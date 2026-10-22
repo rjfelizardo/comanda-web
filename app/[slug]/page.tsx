@@ -48,6 +48,8 @@ async function load(slug: string) {
   const dm = await db.from('businesses').select('delivery_mode').eq('id', biz.id).maybeSingle();
   const kmMode = !dm.error && (dm.data as any)?.delivery_mode === 'km';
   biz.delivery_mode = kmMode ? 'km' : 'zones';
+  const pixRes = await db.rpc('has_online_payment', { p_business: biz.id });
+  biz.accepts_pix = !pixRes.error && pixRes.data === true;
   const groupList = (groups.data ?? []) as any[];
   const optList = (opts.data ?? []) as any[];
   const products: Product[] = ((prods.data ?? []) as any[]).map((p) => ({

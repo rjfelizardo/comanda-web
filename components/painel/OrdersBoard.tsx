@@ -54,7 +54,8 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
       total: Number(o.total), subtotal: Number(o.subtotal), delivery_fee: Number(o.delivery_fee), discount: Number(o.discount ?? 0),
       items: items.filter((i) => i.order_id === o.id),
     }));
-    const fresh = merged.filter((o) => !known.current.has(o.id) && o.status === 'pending_approval');
+    const isNew = (s: string) => s === 'pending_approval' || s === 'paid';
+    const fresh = merged.filter((o) => !known.current.has(o.id) && isNew(o.status));
     if (!first.current && fresh.length) beep();
     merged.forEach((o) => known.current.add(o.id));
     first.current = false;
@@ -98,7 +99,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
 
-  const novosCount = orders.filter((o) => o.status === 'pending_approval').length;
+  const novosCount = orders.filter((o) => o.status === 'pending_approval' || o.status === 'paid').length;
   useEffect(() => {
     // Enquanto houver pedido novo sem resposta, repete o aviso a cada 10s.
     if (!soundOn || novosCount === 0) return;
@@ -114,7 +115,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
   }
 
   const shown = orders.filter((o) => (tab === 'active' ? ACTIVE.includes(o.status) : !ACTIVE.includes(o.status)));
-  const novos = orders.filter((o) => o.status === 'pending_approval').length;
+  const novos = orders.filter((o) => o.status === 'pending_approval' || o.status === 'paid').length;
 
   return (
     <div>
@@ -143,7 +144,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
 
       <div className="grid gap-4 md:grid-cols-2">
         {shown.map((o) => (
-          <article key={o.id} className={`card p-4 ${o.status === 'pending_approval' ? 'ring-2 ring-brand' : ''}`}>
+          <article key={o.id} className={`card p-4 ${o.status === 'pending_approval' || o.status === 'paid' ? 'ring-2 ring-brand' : ''}`}>
             <header className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-display text-xl font-extrabold">#{o.code}</p>
@@ -184,7 +185,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
 
             <div className="mt-3 flex items-end justify-between border-t border-sand pt-3 text-sm">
               <div className="text-ink/60">
-                <p>{o.payment_method === 'online' ? 'Pagamento online' : 'Pagar na ' + (o.fulfillment === 'delivery' ? 'entrega' : 'retirada')}</p>
+                <p>{o.payment_method === 'online' ? (o.payment_status === 'paid' ? '💠 Pago online (Pix) ✔' : '💠 Pix: aguardando pagamento') : 'Pagar na ' + (o.fulfillment === 'delivery' ? 'entrega' : 'retirada')}</p>
                 {o.change_for ? <p>Troco para {brl(o.change_for)}</p> : null}
                 {o.delivery_fee > 0 && <p>Entrega {brl(o.delivery_fee)}</p>}
                 {(o.discount ?? 0) > 0 && <p className="text-green-700">Cupom {o.coupon_code}: − {brl(o.discount as number)}</p>}
@@ -215,8 +216,10 @@ function Actions({ o, busy, onMove }: { o: Order; busy: boolean; onMove: (o: Ord
         <button key="rej" disabled={busy} className="btn-danger btn-sm" onClick={() => confirm('Recusar este pedido?') && onMove(o, 'rejected')}>Recusar</button>,
       ];
       break;
-    case 'approved':
     case 'paid':
+      btns = [b('Aceitar e preparar', 'in_preparation', 'btn-primary'), cancel];
+      break;
+    case 'approved':
       btns = [b('Iniciar preparo', 'in_preparation'), cancel];
       break;
     case 'in_preparation':
@@ -237,7 +240,7 @@ function Actions({ o, busy, onMove }: { o: Order; busy: boolean; onMove: (o: Ord
 }
 
 function badge(s: string) {
-  if (s === 'pending_approval') return 'bg-brand text-white';
+  if (s === 'pending_approval' || s === 'paid') return 'bg-brand text-white';
   if (['delivered'].includes(s)) return 'bg-green-100 text-green-800';
   if (['rejected', 'cancelled'].includes(s)) return 'bg-red-100 text-red-800';
   return 'bg-brand-sun/40 text-ink';

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { brl } from '@/lib/format';
+import PixPayment from '@/components/PixPayment';
 
 type Entry = { code: string; phone: string };
 type Order = {
@@ -52,6 +53,7 @@ const HEADLINE: Record<string, string> = {
 
 export default function MyOrders({ businessId, whatsapp, onClose }: { businessId: string; whatsapp: string | null; onClose: () => void }) {
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [payOpen, setPayOpen] = useState('');
   const [err, setErr] = useState('');
   const [code, setCode] = useState('');
   const [phone, setPhone] = useState('');
@@ -143,6 +145,15 @@ export default function MyOrders({ businessId, whatsapp, onClose }: { businessId
                     <li key={k}>{i.quantity}× {i.name}{i.options.length > 0 && <span className="text-ink/50"> ({i.options.join(', ')})</span>}</li>
                   ))}
                 </ul>
+                {o.status === 'awaiting_payment' && o.payment_method === 'online' && (
+                  <div className="mt-3">
+                    {payOpen === o.code ? (
+                      <PixPayment businessId={businessId} code={o.code} phone={readEntries(businessId).find((x) => x.code === o.code)?.phone ?? ''} total={o.total} onPaid={load} onExpired={load} />
+                    ) : (
+                      <button className="btn-primary w-full" onClick={() => setPayOpen(o.code)}>💠 Pagar com Pix</button>
+                    )}
+                  </div>
+                )}
                 {whatsapp && (
                   <a className="mt-3 inline-block text-sm font-semibold underline" target="_blank" rel="noreferrer"
                     href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(`Olá! Sobre o pedido ${o.code}.`)}`}>Falar com a loja</a>

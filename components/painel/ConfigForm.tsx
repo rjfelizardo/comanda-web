@@ -25,6 +25,9 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   const [zName, setZName] = useState('');
   const [zFee, setZFee] = useState('');
   const [brand, setBrand] = useState<boolean | null>(null);
+  const [mpOn, setMpOn] = useState<boolean | null>(null);
+  const [mpToken, setMpToken] = useState('');
+  const [mpBusy, setMpBusy] = useState(false);
   const [bKm, setBKm] = useState('');
   const [bFee, setBFee] = useState('');
 
@@ -48,6 +51,11 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   }, [businessId]);
 
   useEffect(() => { load(); }, [load]);
+  const loadMp = useCallback(async () => {
+    const { data, error } = await supabaseBrowser().from('payment_accounts').select('status').eq('business_id', businessId).eq('provider', 'mercadopago').maybeSingle();
+    setMpOn(!error && data?.status === 'active');
+  }, [businessId]);
+  useEffect(() => { loadMp(); }, [loadMp]);
   useEffect(() => {
     supabaseBrowser().rpc('has_custom_branding', { p_business: businessId }).then(({ data }) => setBrand(data === true));
   }, [businessId]);
@@ -106,6 +114,25 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
     if (error) return setErr(error.code === '23505' ? 'Já existe uma região com esse nome.' : 'Não foi possível adicionar.');
     setZName(''); setZFee(''); setErr('');
     load();
+  }
+  async function connectMp() {
+    setErr(''); setMsg('');
+    if (mpToken.trim().length < 20) return setErr('Cole o Access Token completo do Mercado Pago.');
+    setMpBusy(true);
+    try {
+      const res = await fetch('/api/mp/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ business_id: businessId, token: mpToken.trim() }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) setErr(j.error || 'Não foi possível conectar.');
+      else { setMpToken(''); setMsg('Mercado Pago conectado! Os clientes já podem pagar com Pix.'); loadMp(); }
+    } catch { setErr('Sem conexão.'); }
+    setMpBusy(false);
+  }
+  async function disconnectMp() {
+    if (!confirm('Desconectar o Mercado Pago? Os clientes só poderão pagar na entrega.')) return;
+    const { error } = await supabaseBrowser().rpc('disconnect_mp', { p_business: businessId });
+    if (error) return setErr('Não foi possível desconectar.');
+    setMsg('Mercado Pago desconectado.');
+    loadMp();
   }
   const kmMode = b.delivery_mode === 'km';
   const SQL09 = 'Rode o SQL 09 no Supabase para usar a taxa por distância.';
@@ -270,6 +297,32 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
       )}
       {err && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{err}</p>}
       {msg && <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{msg}</p>}
+
+      <section className="card p-4">
+        <h2 className="font-bold">Pagamento online (Pix)</h2>
+        {mpOn ? (
+          <>
+            <p className="mt-2 rounded-xl bg-green-50 p-3 text-sm text-green-800">✅ Mercado Pago conectado. Seus clientes podem pagar com Pix na hora do pedido, e o dinheiro cai direto na sua conta do Mercado Pago.</p>
+            {canEdit && <button className="mt-3 text-sm text-red-700 underline" onClick={disconnectMp}>Desconectar Mercado Pago</button>}
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-ink/60">Conecte a sua conta do Mercado Pago para receber Pix. O cliente paga ao finalizar e o pedido só chega para você depois de pago.</p>
+            <ol className="mb-3 list-decimal space-y-1 pl-5 text-sm text-ink/70">
+              <li>Entre em <b>mercadopago.com.br/developers</b> com a conta que vai receber.</li>
+              <li>Em <b>Suas integrações</b>, crie uma aplicação (tipo “Pagamentos online”).</li>
+              <li>Abra <b>Credenciais de produção</b> e copie o <b>Access Token</b>.</li>
+              <li>Cole abaixo e toque em Conectar.</li>
+            </ol>
+            {canEdit && (
+              <div className="flex gap-2">
+                <input className="input" type="password" autoComplete="off" placeholder="APP_USR-…" value={mpToken} onChange={(e) => setMpToken(e.target.value)} />
+                <button className="btn-primary btn-sm shrink-0" disabled={mpBusy} onClick={connectMp}>{mpBusy ? 'Conectando…' : 'Conectar'}</button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <section className="card p-4">
         <h2 className="font-bold">Nomes para importar fotos</h2>

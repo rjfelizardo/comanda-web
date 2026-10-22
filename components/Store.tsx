@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { brl, onlyDigits } from '@/lib/format';
 import MyOrders, { saveEntry } from '@/components/MyOrders';
+import PixPayment, { type PixInfo } from '@/components/PixPayment';
 import { daySlots, scheduleDays } from '@/lib/slots';
 import { couponRule, couponTitle } from '@/lib/coupons';
 import type { Business, CartLine, Category, Hours, Product, PublicCoupon, Zone } from '@/lib/types';
@@ -23,7 +24,7 @@ export default function Store({ business, categories, products, zones, isOpen, h
   const [loaded, setLoaded] = useState(false);
   const [picked, setPicked] = useState<Product | null>(null);
   const [checkout, setCheckout] = useState(false);
-  const [done, setDone] = useState<{ code: string; total: number } | null>(null);
+  const [done, setDone] = useState<{ code: string; total: number; phone: string; pix?: PixInfo | null } | null>(null);
   const [activeCat, setActiveCat] = useState<string>('');
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -101,7 +102,7 @@ export default function Store({ business, categories, products, zones, isOpen, h
     document.getElementById(`cat-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  if (done) return <Success business={business} code={done.code} total={done.total} onTrack={() => { setDone(null); setOrdersOpen(true); }} />;
+  if (done) return <Success business={business} code={done.code} total={done.total} phone={done.phone} pix={done.pix ?? null} onTrack={() => { setDone(null); setOrdersOpen(true); }} />;
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl pb-28">
@@ -598,7 +599,7 @@ function Checkout({
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
   isOpen: boolean;
   onClose: () => void;
-  onDone: (r: { code: string; total: number }) => void;
+  onDone: (r: { code: string; total: number; phone: string; pix?: PixInfo | null }) => void;
 }) {
   const canDelivery = business.accepts_delivery;
   const canPickup = business.accepts_pickup;
@@ -615,6 +616,7 @@ function Checkout({
   const [cepMsg, setCepMsg] = useState('');
   const [notes, setNotes] = useState('');
   const [change, setChange] = useState('');
+  const [payMethod, setPayMethod] = useState<'pix' | 'delivery'>(business.accepts_pix ? 'pix' : 'delivery');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [couponInput, setCouponInput] = useState('');
@@ -762,7 +764,8 @@ function Checkout({
           zone_id: fulfillment === 'delivery' && zoneId ? zoneId : null,
           address: { street, number, complement, neighborhood, reference, cep },
           notes,
-          change_for: change ? Number(change.replace(',', '.')) : null,
+          payment: payMethod === 'pix' && business.accepts_pix ? 'pix' : 'on_delivery',
+          change_for: payMethod === 'delivery' && change ? Number(change.replace(',', '.')) : null,
           coupon_code: coupon ? coupon.code : null,
           scheduled_for: scheduleOn && scheduleAt ? new Date(scheduleAt).toISOString() : null,
           items: cart.map((l) => ({ product_id: l.product_id, half_product_id: l.half_product_id ?? null, half_product_ids: l.half_product_ids ?? (l.half_product_id ? [l.half_product_id] : []), quantity: l.quantity, option_ids: l.option_ids, notes: l.notes })),
@@ -778,7 +781,7 @@ function Checkout({
         localStorage.setItem('comanda-cliente', JSON.stringify({ name, phone, street, number, neighborhood }));
       } catch {}
       saveEntry(business.id, { code: String(data.code), phone });
-      onDone({ code: data.code, total: data.total });
+      onDone({ code: data.code, total: data.total, phone, pix: data.pix ?? null });
     } catch {
       setError('Sem conexão. Tente novamente.');
       setBusy(false);
@@ -887,10 +890,21 @@ function Checkout({
           </>
         )}
 
-        <div>
-          <label className="label" htmlFor="troco">Pagamento na {fulfillment === 'delivery' ? 'entrega' : 'retirada'} — troco para quanto? (opcional)</label>
-          <input id="troco" className="input" inputMode="decimal" placeholder="Ex.: 100" value={change} onChange={(e) => setChange(e.target.value)} />
-        </div>
+        {business.accepts_pix && (
+          <div>
+            <p className="label">Forma de pagamento</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setPayMethod('pix')} className={`rounded-xl border px-3 py-3 text-sm font-semibold ${payMethod === 'pix' ? 'border-brand bg-brand/10' : 'border-sand bg-white'}`}>💠 Pix agora</button>
+              <button type="button" onClick={() => setPayMethod('delivery')} className={`rounded-xl border px-3 py-3 text-sm font-semibold ${payMethod === 'delivery' ? 'border-brand bg-brand/10' : 'border-sand bg-white'}`}>Pagar na {fulfillment === 'delivery' ? 'entrega' : 'retirada'}</button>
+            </div>
+          </div>
+        )}
+        {(!business.accepts_pix || payMethod === 'delivery') && (
+          <div>
+            <label className="label" htmlFor="troco">Pagamento na {fulfillment === 'delivery' ? 'entrega' : 'retirada'} — troco para quanto? (opcional)</label>
+            <input id="troco" className="input" inputMode="decimal" placeholder="Ex.: 100" value={change} onChange={(e) => setChange(e.target.value)} />
+          </div>
+        )}
         <div>
           <label className="label" htmlFor="obs2">Observações do pedido</label>
           <input id="obs2" className="input" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -969,19 +983,21 @@ function Checkout({
   );
 }
 
-function Success({ business, code, total, onTrack }: { business: Business; code: string; total: number; onTrack: () => void }) {
+function Success({ business, code, total, phone, pix, onTrack }: { business: Business; code: string; total: number; phone: string; pix: PixInfo | null; onTrack: () => void }) {
+  const [paid, setPaid] = useState(false);
   const wa = business.whatsapp_contact
     ? `https://wa.me/${business.whatsapp_contact}?text=${encodeURIComponent(`Olá! Fiz o pedido ${code} pelo cardápio online.`)}`
     : null;
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-5 px-6 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-sun text-4xl">✅</div>
-      <h1 className="text-3xl font-extrabold">Pedido enviado!</h1>
+      <h1 className="text-3xl font-extrabold">{pix ? (paid ? 'Pedido pago!' : 'Falta só pagar o Pix') : 'Pedido enviado!'}</h1>
       <p className="text-ink/70">
-        {business.name} recebeu seu pedido e vai confirmar em instantes. Guarde o código:
+        {pix ? `${business.name} só recebe o pedido depois do pagamento. Guarde o código:` : `${business.name} recebeu seu pedido e vai confirmar em instantes. Guarde o código:`}
       </p>
       <p className="rounded-2xl bg-white px-8 py-4 font-display text-4xl font-extrabold tracking-widest shadow-card">{code}</p>
       <p className="text-ink/70">Total: <strong>{brl(total)}</strong></p>
+      {pix && <div className="w-full"><PixPayment businessId={business.id} code={code} phone={phone} total={total} initial={pix} onPaid={() => setPaid(true)} /></div>}
       {wa && (
         <a href={wa} className="btn-primary w-full" target="_blank" rel="noreferrer">
           Falar com a loja no WhatsApp
