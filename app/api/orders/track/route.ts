@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   const entries = (Array.isArray(b.entries) ? b.entries : [])
     .slice(0, 20)
     .map((e: any) => ({
-      code: typeof e?.code === 'string' ? e.code.replace(/\D/g, '').slice(0, 12) : '',
+      code: typeof e?.code === 'string' ? e.code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) : '',
       phone: normalizePhone(typeof e?.phone === 'string' ? e.phone.slice(0, 30) : ''),
     }))
     .filter((e: any) => e.code && e.phone.length >= 10);

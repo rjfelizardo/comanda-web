@@ -4,7 +4,7 @@ export type Group = {
 };
 export type Product = {
   id: string; category_id: string | null; name: string; description: string | null;
-  base_price: number; photo_url: string | null; sort_order: number; groups: Group[];
+  base_price: number; photo_url: string | null; sort_order: number; groups: Group[]; allow_half?: boolean;
 };
 export type Category = { id: string; name: string; sort_order: number };
 export type Zone = { id: string; name: string; fee: number; min_order: number; eta_min: number | null };
@@ -15,5 +15,5 @@ export type Business = {
 };
 export type CartLine = {
   key: string; product_id: string; name: string; unit_price: number; quantity: number;
-  option_ids: string[]; option_labels: string[]; notes: string;
+  option_ids: string[]; option_labels: string[]; notes: string; half_product_id?: string | null;
 };

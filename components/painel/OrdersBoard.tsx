@@ -10,7 +10,7 @@ type Order = {
   id: string; code: string; status: string; fulfillment: string; customer_name: string; customer_phone: string;
   total: number; subtotal: number; delivery_fee: number; payment_method: string; payment_status: string;
   address: any; notes: string | null; change_for: number | null; created_at: string; items: Item[];
-  discount?: number; scheduled_for?: string | null;
+  discount?: number; scheduled_for?: string | null; coupon_code?: string | null;
 };
 
 const ACTIVE = ['pending_approval', 'approved', 'awaiting_payment', 'paid', 'in_preparation', 'ready', 'out_for_delivery'];
@@ -30,7 +30,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
     const since = new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString();
     const { data: os, error } = await supabase
       .from('orders')
-      .select('id,code,status,fulfillment,customer_name,customer_phone,total,subtotal,delivery_fee,payment_method,payment_status,address,notes,change_for,created_at')
+      .select('id,code,status,fulfillment,customer_name,customer_phone,total,subtotal,delivery_fee,payment_method,payment_status,address,notes,change_for,created_at,discount,coupon_code,scheduled_for')
       .eq('business_id', businessId)
       .gte('created_at', since)
       .order('created_at', { ascending: false })
@@ -51,7 +51,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
     }
     const merged: Order[] = list.map((o) => ({
       ...o,
-      total: Number(o.total), subtotal: Number(o.subtotal), delivery_fee: Number(o.delivery_fee),
+      total: Number(o.total), subtotal: Number(o.subtotal), delivery_fee: Number(o.delivery_fee), discount: Number(o.discount ?? 0),
       items: items.filter((i) => i.order_id === o.id),
     }));
     const fresh = merged.filter((o) => !known.current.has(o.id) && o.status === 'pending_approval');
@@ -160,6 +160,9 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
               {o.customer_phone}
             </a>
             <p className="mt-1 text-sm">{o.fulfillment === 'delivery' ? '🛵 Entrega' : '🏪 Retirada'}</p>
+            {o.scheduled_for && (
+              <p className="mt-1 rounded-lg bg-brand-sun/40 px-2 py-1 text-sm font-bold">🕒 Agendado para {new Date(o.scheduled_for).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+            )}
             {o.fulfillment === 'delivery' && o.address && (
               <p className="text-sm text-ink/70">
                 {[o.address.street, o.address.number, o.address.neighborhood].filter(Boolean).join(', ')}
@@ -184,6 +187,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
                 <p>{o.payment_method === 'online' ? 'Pagamento online' : 'Pagar na ' + (o.fulfillment === 'delivery' ? 'entrega' : 'retirada')}</p>
                 {o.change_for ? <p>Troco para {brl(o.change_for)}</p> : null}
                 {o.delivery_fee > 0 && <p>Entrega {brl(o.delivery_fee)}</p>}
+                {(o.discount ?? 0) > 0 && <p className="text-green-700">Cupom {o.coupon_code}: − {brl(o.discount as number)}</p>}
               </div>
               <p className="text-xl font-extrabold">{brl(o.total)}</p>
             </div>

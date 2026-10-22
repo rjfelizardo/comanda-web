@@ -23,7 +23,7 @@ async function load(slug: string) {
     db.from('categories').select('id,name,sort_order').eq('business_id', biz.id).order('sort_order').order('name'),
     db
       .from('products')
-      .select('id,category_id,name,description,base_price,photo_url,sort_order')
+      .select('id,category_id,name,description,base_price,photo_url,sort_order,allow_half')
       .eq('business_id', biz.id)
       .eq('is_available', true)
       .order('sort_order')

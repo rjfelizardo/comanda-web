@@ -63,7 +63,7 @@ export default function MenuImport({ businessId, onClose, onDone }: { businessId
         const cid = catId.get(lower(p.category))!;
         if (existing.has(`${cid}|${lower(p.name)}`)) { skipped++; continue; }
         const pid = crypto.randomUUID();
-        prods.push({ id: pid, business_id: businessId, category_id: cid, name: p.name, description: p.description || null, base_price: p.price, sort_order: sort++ });
+        prods.push({ id: pid, business_id: businessId, category_id: cid, name: p.name, description: p.description || null, base_price: p.price, allow_half: p.half, sort_order: sort++ });
         p.groups.forEach((g, gi) => {
           const gid = crypto.randomUUID();
           groups.push({ id: gid, business_id: businessId, product_id: pid, name: g.name, min_select: g.min, max_select: g.max, sort_order: gi });

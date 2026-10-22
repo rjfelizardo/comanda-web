@@ -4,7 +4,7 @@
 
 export type ImpOption = { name: string; price: number };
 export type ImpGroup = { name: string; min: number; max: number; options: ImpOption[] };
-export type ImpProduct = { category: string; name: string; description: string; price: number; groups: ImpGroup[]; line: number };
+export type ImpProduct = { category: string; name: string; description: string; price: number; groups: ImpGroup[]; line: number; half: boolean };
 export type ImpResult = { products: ImpProduct[]; errors: string[] };
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -60,6 +60,7 @@ export function parseMenuCsv(text: string): ImpResult {
   const iMin = col('minimo', 'min');
   const iMax = col('maximo', 'max');
   const iOpts = col('opcoes', 'opcao', 'options');
+  const iHalf = col('meio a meio', 'meio_a_meio', 'meioameio', 'meio-a-meio');
   if (iName < 0) return { products: [], errors: ['Não achei a coluna "produto" na primeira linha. Use o modelo da tela de importação.'] };
   if (rows.length > 801) errors.push('Planilha muito grande: só as primeiras 800 linhas serão lidas.');
 
@@ -75,9 +76,10 @@ export function parseMenuCsv(text: string): ImpResult {
     const key = norm(category) + '|' + norm(name);
     let p = map.get(key);
     if (!p) {
-      p = { category, name, description: '', price: 0, groups: [], line };
+      p = { category, name, description: '', price: 0, groups: [], line, half: false };
       map.set(key, p);
     }
+    if (/^(sim|s|1|true|x)$/i.test(norm(get(r, iHalf)))) p.half = true;
     const desc = get(r, iDesc);
     if (desc && !p.description) p.description = desc.slice(0, 600);
     const priceStr = get(r, iPrice);
@@ -121,7 +123,7 @@ export function parseMenuCsv(text: string): ImpResult {
 }
 
 export const TEMPLATE_CSV =
-  '﻿categoria;produto;descricao;preco;grupo;minimo;maximo;opcoes\r\n' +
-  'Pizzas;Pizza Calabresa;Mussarela, calabresa e cebola;0;Tamanho;1;1;Pequena=30|Média=40|Grande=55\r\n' +
-  'Pizzas;Pizza Calabresa;;;Borda recheada;0;1;Catupiry=8|Cheddar=8\r\n' +
-  'Bebidas;Guaraná 2L;Gelado;12,00;;;;\r\n';
+  '﻿categoria;produto;descricao;preco;grupo;minimo;maximo;opcoes;meio_a_meio\r\n' +
+  'Pizzas;Pizza Calabresa;Mussarela, calabresa e cebola;0;Tamanho;1;1;Pequena=30|Média=40|Grande=55;sim\r\n' +
+  'Pizzas;Pizza Calabresa;;;Borda recheada;0;1;Catupiry=8|Cheddar=8;\r\n' +
+  'Bebidas;Guaraná 2L;Gelado;12,00;;;;;\r\n';

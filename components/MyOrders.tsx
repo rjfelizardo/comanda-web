@@ -96,7 +96,7 @@ export default function MyOrders({ businessId, whatsapp, onClose }: { businessId
       const d = await r.json().catch(() => ({}));
       if (!r.ok) setErr(d.error || 'Não foi possível buscar.');
       else if ((d.orders ?? []).length === 0) setErr('Não encontramos esse pedido. Confira o código e o WhatsApp usado.');
-      else { saveEntry(businessId, { code: code.replace(/\D/g, ''), phone }); setCode(''); setPhone(''); await load(); }
+      else { saveEntry(businessId, { code: code.toUpperCase().replace(/[^A-Z0-9]/g, ''), phone }); setCode(''); setPhone(''); await load(); }
     } catch {
       setErr('Sem conexão. Tente novamente.');
     }
@@ -153,7 +153,7 @@ export default function MyOrders({ businessId, whatsapp, onClose }: { businessId
           <form onSubmit={find} className="rounded-2xl bg-sand/50 p-3">
             <p className="text-sm font-bold">Buscar outro pedido</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <input className="input" inputMode="numeric" placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} />
+              <input className="input uppercase" placeholder="Código" value={code} onChange={(e) => setCode(e.target.value)} />
               <input className="input" inputMode="tel" placeholder="Seu WhatsApp" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <button className="btn-ghost btn-sm mt-2" disabled={busy || !code || !phone}>{busy ? 'Buscando…' : 'Buscar'}</button>

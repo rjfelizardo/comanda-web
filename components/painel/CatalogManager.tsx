@@ -9,7 +9,7 @@ import MenuImport from '@/components/painel/MenuImport';
 type Cat = { id: string; name: string; sort_order: number };
 type Opt = { id: string; group_id: string; name: string; price_delta: number; is_available: boolean };
 type Grp = { id: string; product_id: string; name: string; min_select: number; max_select: number };
-type Prod = { id: string; category_id: string | null; name: string; description: string | null; base_price: number; photo_url: string | null; is_available: boolean };
+type Prod = { id: string; category_id: string | null; name: string; description: string | null; base_price: number; photo_url: string | null; is_available: boolean; allow_half?: boolean };
 
 const num = (s: string) => {
   const n = Number(String(s).replace(',', '.'));
@@ -31,7 +31,7 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
     const s = supabaseBrowser();
     const [c, p, g, o] = await Promise.all([
       s.from('categories').select('id,name,sort_order').eq('business_id', businessId).order('sort_order').order('name'),
-      s.from('products').select('id,category_id,name,description,base_price,photo_url,is_available').eq('business_id', businessId).order('sort_order').order('name'),
+      s.from('products').select('id,category_id,name,description,base_price,photo_url,is_available,allow_half').eq('business_id', businessId).order('sort_order').order('name'),
       s.from('product_option_groups').select('id,product_id,name,min_select,max_select').eq('business_id', businessId).order('sort_order'),
       s.from('product_options').select('id,group_id,name,price_delta,is_available').eq('business_id', businessId).order('sort_order'),
     ]);
@@ -154,6 +154,7 @@ function ProductEditor({
   const [price, setPrice] = useState(product ? String(product.base_price).replace('.', ',') : '');
   const [cat, setCat] = useState(product?.category_id ?? '');
   const [photo, setPhoto] = useState(product?.photo_url ?? '');
+  const [half, setHalf] = useState(!!product?.allow_half);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [gName, setGName] = useState('');
@@ -174,7 +175,7 @@ function ProductEditor({
     if (Number.isNaN(p)) return setError('Preço inválido.');
     setBusy(true);
     const s = supabaseBrowser();
-    const row = { name: name.trim(), description: desc.trim() || null, base_price: p, category_id: cat || null, photo_url: photo || null };
+    const row = { name: name.trim(), description: desc.trim() || null, base_price: p, category_id: cat || null, photo_url: photo || null, allow_half: half };
     const r = product ? await s.from('products').update(row).eq('id', product.id) : await s.from('products').insert({ ...row, business_id: businessId });
     setBusy(false);
     if (r.error) return setError('Não foi possível salvar.');
@@ -237,6 +238,10 @@ function ProductEditor({
               </select>
             </div>
           </div>
+          <label className="flex items-center gap-3 text-sm font-semibold">
+            <input type="checkbox" className="h-5 w-5 accent-brand" checked={half} onChange={(e) => setHalf(e.target.checked)} />
+            🍕 Permite meio a meio (com outros produtos da mesma categoria que também permitem)
+          </label>
           <p className="-mt-2 text-xs text-ink/50">Dica: se o preço depende do tamanho, deixe o preço base em 0 e cadastre o tamanho como grupo de opções.</p>
 
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}

@@ -23,6 +23,12 @@ export default function Store({ business, categories, products, zones, isOpen }:
   const [activeCat, setActiveCat] = useState<string>('');
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [feeOpen, setFeeOpen] = useState(false);
+  const [myZoneId, setMyZoneId] = useState('');
+  useEffect(() => {
+    try { setMyZoneId(localStorage.getItem(`comanda-zona-${business.id}`) || ''); } catch {}
+  }, [business.id]);
+  const myZone = zones.find((z) => z.id === myZoneId);
 
   useEffect(() => {
     try {
@@ -122,7 +128,14 @@ export default function Store({ business, categories, products, zones, isOpen }:
             </div>
           </div>
         </div>
-        <button onClick={() => setOrdersOpen(true)} className="btn-ghost btn-sm mt-3 w-full">🧾 Meus pedidos</button>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {zones.length > 0 && business.accepts_delivery ? (
+            <button onClick={() => setFeeOpen(true)} className="btn-ghost btn-sm w-full">
+              📍 {myZone ? `${myZone.name}: ${myZone.fee > 0 ? brl(myZone.fee) : 'entrega grátis'}${myZone.eta_min ? ` · ~${myZone.eta_min} min` : ''}` : 'Calcular taxa e tempo de entrega'}
+            </button>
+          ) : <span />}
+          <button onClick={() => setOrdersOpen(true)} className="btn-ghost btn-sm w-full">🧾 Meus pedidos</button>
+        </div>
         {business.description && <p className="mt-3 text-sm text-ink/70">{business.description}</p>}
         {!isOpen && (
           <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">
@@ -217,12 +230,31 @@ export default function Store({ business, categories, products, zones, isOpen }:
       {picked && (
         <ProductSheet
           product={picked}
+          halves={picked.allow_half ? products.filter((p) => p.allow_half && p.id !== picked.id && p.category_id === picked.category_id && p.groups.length > 0) : []}
           onClose={() => setPicked(null)}
           onAdd={(l) => {
             addLine(l);
             setPicked(null);
           }}
         />
+      )}
+
+      {feeOpen && (
+        <Sheet title="Taxa e tempo de entrega" onClose={() => setFeeOpen(false)}>
+          <p className="mb-3 text-sm text-ink/70">Escolha seu bairro ou região para ver a taxa e o tempo estimado. Ficamos com essa escolha para o seu pedido.</p>
+          <div className="grid gap-2">
+            {zones.map((z) => (
+              <button
+                key={z.id}
+                onClick={() => { setMyZoneId(z.id); try { localStorage.setItem(`comanda-zona-${business.id}`, z.id); } catch {} setFeeOpen(false); }}
+                className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left ${myZoneId === z.id ? 'border-brand bg-brand/10' : 'border-sand bg-white'}`}
+              >
+                <span className="font-medium">{z.name}{z.min_order > 0 && <span className="block text-xs text-ink/60">Pedido mínimo {brl(z.min_order)}</span>}</span>
+                <span className="text-right text-sm"><b>{z.fee > 0 ? brl(z.fee) : 'Grátis'}</b><span className="block text-ink/60">~{z.eta_min ?? business.prep_time_min + 15} min</span></span>
+              </button>
+            ))}
+          </div>
+        </Sheet>
       )}
 
       {ordersOpen && <MyOrders businessId={business.id} whatsapp={business.whatsapp_contact} onClose={() => setOrdersOpen(false)} />}
@@ -253,10 +285,12 @@ function minFromOptions(p: Product) {
 }
 
 /* ---------- Escolha de opções do produto ---------- */
-function ProductSheet({ product, onClose, onAdd }: { product: Product; onClose: () => void; onAdd: (l: CartLine) => void }) {
+function ProductSheet({ product, halves, onClose, onAdd }: { product: Product; halves: Product[]; onClose: () => void; onAdd: (l: CartLine) => void }) {
   const [sel, setSel] = useState<Record<string, string[]>>({});
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState('');
+  const [halfOn, setHalfOn] = useState(false);
+  const [halfId, setHalfId] = useState('');
 
   function toggle(gid: string, oid: string, max: number) {
     setSel((prev) => {
@@ -269,16 +303,34 @@ function ProductSheet({ product, onClose, onAdd }: { product: Product; onClose: 
   }
 
   const chosen = product.groups.flatMap((g) => g.options.filter((o) => (sel[g.id] ?? []).includes(o.id)));
-  const unit = product.base_price + chosen.reduce((s, o) => s + o.price_delta, 0);
+  const unit1 = product.base_price + chosen.reduce((s, o) => s + o.price_delta, 0);
   const missing = product.groups.find((g) => (sel[g.id]?.length ?? 0) < g.min_select);
+  const half = halfOn ? halves.find((h) => h.id === halfId) : undefined;
+  // segundo sabor: mesmas opcoes pelo nome (grupo + opcao). Cobra o valor do sabor mais caro.
+  let halfUnit: number | null = null;
+  if (half) {
+    let ok = true;
+    let sum = half.base_price;
+    for (const g of product.groups) {
+      for (const o of g.options.filter((x) => (sel[g.id] ?? []).includes(x.id))) {
+        const o2 = half.groups.find((x) => x.name.toLowerCase() === g.name.toLowerCase())?.options.find((x) => x.name.toLowerCase() === o.name.toLowerCase());
+        if (!o2) ok = false; else sum += o2.price_delta;
+      }
+    }
+    halfUnit = ok ? sum : null;
+  }
+  const halfBlocked = halfOn && (!half || (!missing && halfUnit === null));
+  const unit = half && halfUnit !== null ? Math.max(unit1, halfUnit) : unit1;
 
   function add() {
-    if (missing) return;
+    if (missing || halfBlocked) return;
     const ids = chosen.map((o) => o.id).sort();
+    const hid = half ? half.id : null;
     onAdd({
-      key: `${product.id}|${ids.join(',')}|${notes.trim()}`,
+      key: `${product.id}|${hid ?? ''}|${ids.join(',')}|${notes.trim()}`,
       product_id: product.id,
-      name: product.name,
+      half_product_id: hid,
+      name: half ? `Meio ${product.name} / Meio ${half.name}` : product.name,
       unit_price: unit,
       quantity: qty,
       option_ids: ids,
@@ -325,6 +377,26 @@ function ProductSheet({ product, onClose, onAdd }: { product: Product; onClose: 
         </fieldset>
       ))}
 
+      {halves.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-sand p-3">
+          <label className="flex items-center gap-3 font-bold">
+            <input type="checkbox" className="h-5 w-5 accent-brand" checked={halfOn} onChange={(e) => setHalfOn(e.target.checked)} />
+            🍕 Quero meio a meio
+          </label>
+          {halfOn && (
+            <div className="mt-3">
+              <label className="label" htmlFor="metade">Escolha o outro sabor</label>
+              <select id="metade" className="input" value={halfId} onChange={(e) => setHalfId(e.target.value)}>
+                <option value="">Escolha…</option>
+                {halves.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+              </select>
+              {half && !missing && halfUnit === null && <p className="mt-2 text-sm text-red-700">Este sabor não tem o tamanho escolhido.</p>}
+              <p className="mt-2 text-xs text-ink/60">No meio a meio vale o preço do sabor mais caro.</p>
+            </div>
+          )}
+        </div>
+      )}
+
       <label className="label" htmlFor="obs">Observação</label>
       <input id="obs" className="input mb-5" maxLength={200} placeholder="Ex.: sem cebola" value={notes} onChange={(e) => setNotes(e.target.value)} />
 
@@ -334,8 +406,8 @@ function ProductSheet({ product, onClose, onAdd }: { product: Product; onClose: 
           <span className="w-5 text-center font-bold">{qty}</span>
           <button className="h-10 w-10 text-xl" onClick={() => setQty((q) => Math.min(50, q + 1))} aria-label="Mais">+</button>
         </div>
-        <button className="btn-primary flex-1" disabled={!!missing || unit <= 0} onClick={add}>
-          {missing ? `Escolha: ${missing.name}` : `Adicionar · ${brl(unit * qty)}`}
+        <button className="btn-primary flex-1" disabled={!!missing || halfBlocked || unit <= 0} onClick={add}>
+          {missing ? `Escolha: ${missing.name}` : halfBlocked ? 'Escolha o outro sabor' : `Adicionar · ${brl(unit * qty)}`}
         </button>
       </div>
     </Sheet>
@@ -369,6 +441,18 @@ function Checkout({
   const [change, setChange] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [couponInput, setCouponInput] = useState('');
+  const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponMsg, setCouponMsg] = useState('');
+  const [scheduleOn, setScheduleOn] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState('');
+
+  useEffect(() => {
+    try {
+      const z = localStorage.getItem(`comanda-zona-${business.id}`);
+      if (z && zones.some((x) => x.id === z)) setZoneId(z);
+    } catch {}
+  }, [business.id, zones]);
 
   useEffect(() => {
     try {
@@ -384,7 +468,27 @@ function Checkout({
   const zone = zones.find((z) => z.id === zoneId);
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.quantity, 0);
   const fee = fulfillment === 'delivery' ? zone?.fee ?? 0 : 0;
-  const total = subtotal + fee;
+  const discount = coupon ? coupon.discount : 0;
+  const total = Math.max(0, subtotal + fee - discount);
+
+  async function checkCoupon(code: string, silent = false) {
+    if (!code.trim()) return;
+    if (!silent) setCouponMsg('');
+    try {
+      const r = await fetch('/api/coupon', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_id: business.id, code, phone, subtotal, fee }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { setCoupon({ code: code.trim().toUpperCase(), discount: Number(d.discount) }); setCouponMsg(''); }
+      else { setCoupon(null); setCouponMsg(d.error || 'Cupom inválido.'); }
+    } catch { setCouponMsg('Sem conexão. Tente novamente.'); }
+  }
+  // Se o carrinho/entrega mudar, confere o cupom de novo (o desconto pode mudar).
+  useEffect(() => {
+    if (coupon) checkCoupon(coupon.code, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal, fee, fulfillment]);
 
   function setQty(key: string, delta: number) {
     setCart((prev) =>
@@ -395,7 +499,8 @@ function Checkout({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!isOpen) return setError('A loja está fechada agora.');
+    if (!isOpen && !scheduleOn) return setError('A loja está fechada agora. Você pode agendar o pedido para mais tarde.');
+    if (scheduleOn && !scheduleAt) return setError('Escolha o dia e a hora do agendamento.');
     if (cart.length === 0) return setError('Seu carrinho está vazio.');
     if (name.trim().length < 2) return setError('Informe seu nome.');
     const digits = onlyDigits(phone);
@@ -418,7 +523,9 @@ function Checkout({
           address: { street, number, complement, neighborhood, reference },
           notes,
           change_for: change ? Number(change.replace(',', '.')) : null,
-          items: cart.map((l) => ({ product_id: l.product_id, quantity: l.quantity, option_ids: l.option_ids, notes: l.notes })),
+          coupon_code: coupon ? coupon.code : null,
+          scheduled_for: scheduleOn && scheduleAt ? new Date(scheduleAt).toISOString() : null,
+          items: cart.map((l) => ({ product_id: l.product_id, half_product_id: l.half_product_id ?? null, quantity: l.quantity, option_ids: l.option_ids, notes: l.notes })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -537,21 +644,54 @@ function Checkout({
           <input id="obs2" className="input" maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
+        <div className="rounded-2xl border border-sand p-3">
+          <label className="flex items-center gap-3 font-bold">
+            <input type="checkbox" className="h-5 w-5 accent-brand" checked={scheduleOn} onChange={(e) => setScheduleOn(e.target.checked)} />
+            🕒 Agendar para mais tarde
+          </label>
+          {scheduleOn && (
+            <div className="mt-2">
+              <input type="datetime-local" className="input" value={scheduleAt} min={toLocalInput(new Date(Date.now() + 30 * 60000))} max={toLocalInput(new Date(Date.now() + 7 * 86400000))} onChange={(e) => setScheduleAt(e.target.value)} />
+              <p className="mt-1 text-xs text-ink/60">A loja confirma o horário ao aceitar o pedido.</p>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="label" htmlFor="cupom">Cupom de desconto</label>
+          <div className="flex gap-2">
+            <input id="cupom" className="input uppercase" value={couponInput} onChange={(e) => setCouponInput(e.target.value)} placeholder="Digite o cupom" maxLength={20} disabled={!!coupon} />
+            {coupon ? (
+              <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => { setCoupon(null); setCouponInput(''); }}>Remover</button>
+            ) : (
+              <button type="button" className="btn-ghost btn-sm shrink-0" disabled={!couponInput.trim()} onClick={() => checkCoupon(couponInput)}>Aplicar</button>
+            )}
+          </div>
+          {coupon && <p className="mt-1 text-sm font-semibold text-green-700">Cupom {coupon.code} aplicado: − {brl(coupon.discount)}</p>}
+          {couponMsg && <p className="mt-1 text-sm text-red-700">{couponMsg}</p>}
+        </div>
+
         <dl className="space-y-1 rounded-xl bg-sand/60 p-4 text-sm">
           <div className="flex justify-between"><dt>Itens</dt><dd>{brl(subtotal)}</dd></div>
           {fulfillment === 'delivery' && <div className="flex justify-between"><dt>Entrega</dt><dd>{zone ? (fee > 0 ? brl(fee) : 'Grátis') : 'Escolha a região'}</dd></div>}
+          {discount > 0 && <div className="flex justify-between text-green-700"><dt>Desconto</dt><dd>− {brl(discount)}</dd></div>}
           <div className="flex justify-between text-base font-extrabold"><dt>Total</dt><dd>{brl(total)}</dd></div>
         </dl>
 
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
 
-        <button className="btn-primary" disabled={busy || !isOpen}>
+        <button className="btn-primary" disabled={busy || (!isOpen && !scheduleOn)}>
           {busy ? 'Enviando…' : `Enviar pedido · ${brl(total)}`}
         </button>
         <p className="text-center text-xs text-ink/50">O valor final é conferido pela loja ao receber o pedido.</p>
       </form>
     </Sheet>
   );
+}
+
+function toLocalInput(d: Date) {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 function Success({ business, code, total, onTrack }: { business: Business; code: string; total: number; onTrack: () => void }) {

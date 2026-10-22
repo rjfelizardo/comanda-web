@@ -37,6 +37,14 @@ const MESSAGES: Record<string, string> = {
   invalid_change: 'Valor do troco inválido.',
   too_many_pending_orders: 'Você já tem pedidos aguardando. Aguarde a confirmação da loja.',
   notes_too_long: 'Observação muito longa.',
+  coupon_invalid: 'Cupom inválido.',
+  coupon_not_started: 'Este cupom ainda não começou.',
+  coupon_expired: 'Este cupom expirou.',
+  coupon_exhausted: 'Este cupom já atingiu o limite de usos.',
+  coupon_already_used: 'Você já usou este cupom.',
+  coupon_no_delivery_fee: 'Este cupom é para entrega com taxa.',
+  invalid_schedule: 'Horário de agendamento inválido. Escolha entre 30 minutos e 7 dias a partir de agora.',
+  invalid_half: 'Combinação de meio a meio inválida.',
 };
 
 export async function POST(req: Request) {
@@ -57,6 +65,7 @@ export async function POST(req: Request) {
   const items = Array.isArray(b.items) ? b.items.slice(0, 40) : [];
   const cleanItems = items.map((i: any) => ({
     product_id: str(i?.product_id, 60),
+    half_product_id: str(i?.half_product_id, 60) || null,
     quantity: Number.isInteger(i?.quantity) ? i.quantity : 0,
     option_ids: Array.isArray(i?.option_ids) ? i.option_ids.slice(0, 30).map((x: unknown) => str(x, 60)) : [],
     notes: str(i?.notes, 200),
@@ -76,6 +85,9 @@ export async function POST(req: Request) {
       : null;
 
   const change = Number(b.change_for);
+  const coupon = str(b.coupon_code, 20).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const schedMs = typeof b.scheduled_for === 'string' ? Date.parse(b.scheduled_for) : NaN;
+  const scheduled = Number.isFinite(schedMs) ? new Date(schedMs).toISOString() : '';
   try {
     const db = supabaseAdmin();
     const { data, error } = await db.rpc('place_order', {
@@ -90,10 +102,12 @@ export async function POST(req: Request) {
       p_notes: str(b.notes, 500) || null,
       p_change_for: Number.isFinite(change) && change > 0 ? change : null,
       p_items: cleanItems,
+      ...(coupon ? { p_coupon_code: coupon } : {}),
+      ...(scheduled ? { p_scheduled_for: scheduled } : {}),
     });
     if (error) {
       const code = (error.message || '').split(':')[0].trim();
-      const known = MESSAGES[code];
+      const known = code === 'coupon_min_order' ? `Este cupom vale a partir de R$ ${String((error.message.split(':')[1] || '').trim()).replace('.', ',')}.` : MESSAGES[code];
       if (!known) console.error('place_order error', error.message);
       return NextResponse.json({ error: known ?? 'Não foi possível enviar o pedido. Tente novamente.' }, { status: known ? 422 : 500 });
     }
