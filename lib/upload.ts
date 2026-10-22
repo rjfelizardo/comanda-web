@@ -1,8 +1,8 @@
 import { supabaseBrowser } from '@/lib/supabase/client';
 
 // Reduz a imagem no navegador (max 1200px, JPEG) e envia para o bucket comanda-media.
-export async function uploadImage(businessId: string, file: File): Promise<string> {
-  const blob = await shrink(file, 1200);
+export async function uploadImage(businessId: string, file: File, max = 1200): Promise<string> {
+  const blob = await shrink(file, max);
   const supabase = supabaseBrowser();
   const path = `${businessId}/${crypto.randomUUID()}.jpg`;
   const { error } = await supabase.storage.from('comanda-media').upload(path, blob, {

@@ -23,6 +23,7 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   const [busy, setBusy] = useState(false);
   const [zName, setZName] = useState('');
   const [zFee, setZFee] = useState('');
+  const [brand, setBrand] = useState<boolean | null>(null);
 
   const load = useCallback(async () => {
     const s = supabaseBrowser();
@@ -40,6 +41,9 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   }, [businessId]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    supabaseBrowser().rpc('has_custom_branding', { p_business: businessId }).then(({ data }) => setBrand(data === true));
+  }, [businessId]);
 
   if (!b) return <p className="py-10 text-center text-ink/50">Carregando…</p>;
   const set = (k: string, v: any) => setB((p: any) => ({ ...p, [k]: v }));
@@ -48,7 +52,7 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
   async function img(kind: 'logo_url' | 'banner_url', file?: File) {
     if (!file) return;
     setBusy(true); setErr('');
-    try { set(kind, await uploadImage(businessId, file)); } catch { setErr('Não foi possível enviar a imagem.'); }
+    try { set(kind, await uploadImage(businessId, file, kind === 'banner_url' ? 1600 : 800)); } catch { setErr('Não foi possível enviar a imagem.'); }
     setBusy(false);
   }
 
@@ -68,7 +72,7 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
       accepts_delivery: !!b.accepts_delivery, accepts_pickup: !!b.accepts_pickup, accept_when_closed: !!b.accept_when_closed,
       min_order: min, prep_time_min: Math.max(1, parseInt(b.prep_time_min, 10) || 40),
     }).eq('id', businessId);
-    if (r.error) { setBusy(false); return setErr('Não foi possível salvar.'); }
+    if (r.error) { setBusy(false); return setErr(/plan_required/.test(r.error.message) ? 'Logo e fachada fazem parte do plano com personalização.' : 'Não foi possível salvar.'); }
     await s.from('business_hours').delete().eq('business_id', businessId);
     const rows = days.map((d, i) => ({ d, i })).filter(({ d }) => d.on).map(({ d, i }) => ({ business_id: businessId, weekday: i, opens: d.opens, closes: d.closes }));
     if (rows.length) {
@@ -106,23 +110,49 @@ export default function ConfigForm({ businessId, canEdit }: { businessId: string
       </section>
 
       <section className="card grid gap-4 p-4">
-        <h2 className="font-bold">Seu negócio</h2>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-bold">Personalizar a loja</h2>
+            <p className="text-sm text-ink/60">Deixe a página de pedidos com a cara do seu negócio.</p>
+          </div>
+          <span className={`chip ${brand ? 'bg-green-100 text-green-800' : 'bg-brand-sun/60 text-ink'}`}>{brand ? 'Ativo' : 'Plano Personalizado'}</span>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-sand p-3">
+            <p className="text-sm font-bold">Logo</p>
+            <p className="mb-2 text-xs text-ink/60">Quadrada, ex.: 500 × 500 px</p>
             {b.logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={b.logo_url} alt="" className="h-16 w-16 rounded-2xl object-cover" />
-            ) : <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sand">Logo</div>}
-            <label className="btn-ghost btn-sm cursor-pointer">Logo<input disabled={dis} type="file" accept="image/*" className="hidden" onChange={(e) => img('logo_url', e.target.files?.[0])} /></label>
+              <img src={b.logo_url} alt="" className="h-24 w-24 rounded-2xl object-cover" />
+            ) : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-sand text-xs text-ink/50">Sem logo</div>}
+            <div className="mt-3 flex gap-2">
+              <label className={`btn-ghost btn-sm ${dis || !brand ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>{b.logo_url ? 'Trocar logo' : 'Enviar logo'}<input disabled={dis || !brand} type="file" accept="image/*" className="hidden" onChange={(e) => img('logo_url', e.target.files?.[0])} /></label>
+              {b.logo_url && brand && !dis && <button className="text-sm text-red-700 underline" onClick={() => set('logo_url', '')}>Remover</button>}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="rounded-2xl border border-sand p-3">
+            <p className="text-sm font-bold">Fachada da loja</p>
+            <p className="mb-2 text-xs text-ink/60">Foto larga no topo, ex.: 1600 × 600 px</p>
             {b.banner_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={b.banner_url} alt="" className="h-16 w-28 rounded-xl object-cover" />
-            ) : <div className="flex h-16 w-28 items-center justify-center rounded-xl bg-sand">Capa</div>}
-            <label className="btn-ghost btn-sm cursor-pointer">Capa<input disabled={dis} type="file" accept="image/*" className="hidden" onChange={(e) => img('banner_url', e.target.files?.[0])} /></label>
+              <img src={b.banner_url} alt="" className="h-24 w-full rounded-2xl object-cover" />
+            ) : <div className="flex h-24 w-full items-center justify-center rounded-2xl bg-sand text-xs text-ink/50">Sem fachada</div>}
+            <div className="mt-3 flex gap-2">
+              <label className={`btn-ghost btn-sm ${dis || !brand ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>{b.banner_url ? 'Trocar fachada' : 'Enviar fachada'}<input disabled={dis || !brand} type="file" accept="image/*" className="hidden" onChange={(e) => img('banner_url', e.target.files?.[0])} /></label>
+              {b.banner_url && brand && !dis && <button className="text-sm text-red-700 underline" onClick={() => set('banner_url', '')}>Remover</button>}
+            </div>
           </div>
         </div>
+        {brand === false && (
+          <p className="rounded-xl bg-brand-sun/40 p-3 text-sm">
+            Logo e fachada são do <b>plano com personalização</b>. <a className="font-bold underline" href="https://wa.me/5574999134241?text=Quero%20o%20plano%20com%20personaliza%C3%A7%C3%A3o%20do%20Comanda" target="_blank" rel="noreferrer">Fale com a gente para liberar</a>.
+          </p>
+        )}
+        {brand && <p className="text-xs text-ink/60">Depois de escolher as imagens, toque em “Salvar alterações”.</p>}
+      </section>
+
+      <section className="card grid gap-4 p-4">
+        <h2 className="font-bold">Seu negócio</h2>
         <div><label className="label">Nome</label><input disabled={dis} className="input" value={b.name} maxLength={80} onChange={(e) => set('name', e.target.value)} /></div>
         <div><label className="label">Descrição curta</label><textarea disabled={dis} className="input" rows={2} maxLength={500} value={b.description ?? ''} onChange={(e) => set('description', e.target.value)} /></div>
         <div><label className="label">WhatsApp da loja (com DDD)</label><input disabled={dis} className="input" inputMode="tel" placeholder="(71) 99999-9999" value={b.whatsapp_contact} onChange={(e) => set('whatsapp_contact', e.target.value)} /></div>
