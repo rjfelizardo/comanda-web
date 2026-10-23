@@ -60,6 +60,14 @@ export default function AdminBoard() {
     load();
   }
 
+  async function remove(b: Biz) {
+    const typed = prompt(`EXCLUIR "${b.name}" de vez?\nIsso apaga cardápio, pedidos, clientes e conversas e não dá para desfazer.\n\nPara confirmar, digite o link da loja: ${b.slug}`);
+    if (typed === null) return;
+    const { error } = await supabaseBrowser().rpc('admin_delete_business', { p_business: b.id, p_confirm_slug: typed.trim() });
+    if (error) { alert(error.message.includes('confirmation_mismatch') ? 'O link digitado não confere. Nada foi excluído.' : error.message); return; }
+    load();
+  }
+
   if (error) return <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}</p>;
   if (!rows) return <p className="py-10 text-center text-ink/50">Carregando…</p>;
 
@@ -129,6 +137,7 @@ export default function AdminBoard() {
               {b.status === 'active'
                 ? <button className="btn-ghost btn-sm text-red-700" onClick={() => setStatus(b, 'suspended')}>Suspender</button>
                 : <button className="btn-primary btn-sm" onClick={() => setStatus(b, 'active')}>Reativar</button>}
+              <button className="btn-ghost btn-sm text-red-700" onClick={() => remove(b)}>Excluir</button>
             </div>
           </div>
         ))}
