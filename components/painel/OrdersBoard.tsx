@@ -21,7 +21,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const known = useRef<Set<string>>(new Set());
+  const known = useRef<Map<string, string>>(new Map());
   const first = useRef(true);
   const [soundOn, setSoundOn] = useState(false);
 
@@ -55,9 +55,10 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
       items: items.filter((i) => i.order_id === o.id),
     }));
     const isNew = (s: string) => s === 'pending_approval' || s === 'paid';
-    const fresh = merged.filter((o) => !known.current.has(o.id) && isNew(o.status));
+    // Avisa quando um pedido ENTRA no estado de novo (chegou, ou o Pix foi pago), mesmo que ja estivesse na lista.
+    const fresh = merged.filter((o) => isNew(o.status) && known.current.get(o.id) !== o.status);
     if (!first.current && fresh.length) beep();
-    merged.forEach((o) => known.current.add(o.id));
+    merged.forEach((o) => known.current.set(o.id, o.status));
     first.current = false;
     setOrders(merged);
     setError('');
@@ -65,7 +66,7 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
   }, [businessId]);
 
   useEffect(() => {
-    known.current = new Set();
+    known.current = new Map();
     first.current = true;
     load();
     const supabase = supabaseBrowser();
@@ -114,7 +115,9 @@ export default function OrdersBoard({ businessId, businessName }: { businessId: 
     if (next) { unlockAudio(); beep(); }
   }
 
-  const shown = orders.filter((o) => (tab === 'active' ? ACTIVE.includes(o.status) : !ACTIVE.includes(o.status)));
+  // Pedido por Pix so aparece depois de pago: enquanto aguarda o pagamento, fica escondido.
+  const unpaidPix = (o: Order) => o.payment_method === 'online' && o.status === 'awaiting_payment' && o.payment_status !== 'paid';
+  const shown = orders.filter((o) => (tab === 'active' ? ACTIVE.includes(o.status) && !unpaidPix(o) : !ACTIVE.includes(o.status)));
   const novos = orders.filter((o) => o.status === 'pending_approval' || o.status === 'paid').length;
 
   return (
