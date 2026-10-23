@@ -4,7 +4,14 @@ import PanelNav from '@/components/painel/PanelNav';
 import Onboarding from '@/components/painel/Onboarding';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Painel' };
+export async function generateMetadata() {
+  try {
+    const { current } = await getContext();
+    return { title: current ? `${current.name} · Painel` : 'Painel' };
+  } catch {
+    return { title: 'Painel' };
+  }
+}
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
   const { list, current, user } = await getContext();
