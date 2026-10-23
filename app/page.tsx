@@ -19,7 +19,16 @@ const STEPS = [
   { n: '3', t: 'Divulgue o link', d: 'Mande no WhatsApp e no Instagram. Os pedidos caem no seu painel.' },
 ];
 
+const SUPPORT = [
+  { i: '🎓', t: 'Treinamento da sua equipe', d: 'Mostramos para você e para quem atende como usar o painel: receber pedido, aceitar, avançar e finalizar, imprimir, cadastrar produto e ajustar preços e horários.' },
+  { i: '🧰', t: 'Implantação guiada', d: 'Ajudamos a montar o cardápio, importar produtos e fotos, configurar taxa de entrega, Pix e o atendente de WhatsApp, até a loja estar pronta para vender.' },
+  { i: '💬', t: 'Suporte por WhatsApp', d: 'Dúvida ou problema? Fale direto com a gente pelo WhatsApp ou e-mail, em horário comercial. Sem fila de robô e sem ticket.' },
+  { i: '📘', t: 'Material de apoio', d: 'Passo a passo simples para cada tarefa do dia a dia, para novos funcionários aprenderem rápido, sem depender de você.' },
+];
+
 const FAQ = [
+  { q: 'Vocês treinam a minha equipe?', a: 'Sim. Fazemos o treinamento de quem vai usar o painel (atendimento, cozinha e caixa) e deixamos o passo a passo por escrito. Quando entrar um funcionário novo, é só pedir um novo treinamento.' },
+  { q: 'Como funciona o suporte?', a: 'Pelo WhatsApp e por e-mail, em horário comercial. Problemas que impedem a loja de vender têm prioridade.' },
   { q: 'Preciso de computador?', a: 'Não. O painel e a loja funcionam no celular e no tablet, direto no navegador. Nada pra instalar.' },
   { q: 'O cliente precisa baixar um app?', a: 'Não. Ele abre o seu link, escolhe e pede. Simples como mandar uma mensagem.' },
   { q: 'Como recebo o dinheiro do Pix?', a: 'Direto na sua conta do Mercado Pago. O Comanda não segura o seu dinheiro. Você também pode aceitar pagamento na entrega.' },
@@ -39,6 +48,7 @@ export default function Home() {
           <span className="font-display text-xl font-extrabold tracking-tight">Comanda</span>
         </div>
         <nav className="flex items-center gap-2">
+          <a href="#suporte" className="hidden px-3 text-sm font-semibold text-ink/70 hover:text-ink sm:inline">Suporte</a>
           <Link href="/login" className="btn-ghost btn-sm">Entrar</Link>
         </nav>
       </header>
@@ -107,6 +117,25 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* suporte e treinamento */}
+      <section id="suporte" className="mx-auto max-w-6xl px-5 py-16">
+        <h2 className="text-center font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Suporte e treinamento de equipe</h2>
+        <p className="mx-auto mt-3 max-w-2xl text-center text-ink/70">Você não fica sozinho. Entregamos a loja funcionando e ensinamos sua equipe a usar.</p>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {SUPPORT.map((f) => (
+            <div key={f.t} className="card min-w-0 p-5">
+              <div className="text-3xl">{f.i}</div>
+              <h3 className="mt-3 text-lg font-extrabold leading-tight">{f.t}</h3>
+              <p className="mt-2 break-words text-sm text-ink/70">{f.d}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a href="https://wa.me/5574999134241?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20Comanda." className="btn-primary" target="_blank" rel="noreferrer">Falar no WhatsApp</a>
+          <a href="mailto:comandagrupobridge@gmail.com" className="btn-ghost">comandagrupobridge@gmail.com</a>
         </div>
       </section>
 
