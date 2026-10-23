@@ -34,7 +34,7 @@ const FAQ = [
   { q: 'Como recebo o dinheiro do Pix?', a: 'Direto na sua conta do Mercado Pago. O Comanda não segura o seu dinheiro. Você também pode aceitar pagamento na entrega.' },
   { q: 'Serve só pra pizzaria?', a: 'Serve para pizzaria, padaria, lanchonete, hamburgueria, açaí, marmitaria e qualquer delivery com cardápio.' },
   { q: 'Quanto custa?', a: 'Os planos serão divulgados em breve. Quem criar a loja agora já acompanha o lançamento.' },
-  { q: 'Vai ter atendente no WhatsApp?', a: 'Está no nosso roteiro: um atendente com inteligência artificial que responde clientes e anota pedidos.' },
+  { q: 'Vai ter atendente no WhatsApp?', a: 'Sim. O atendente com inteligência artificial responde seus clientes no WhatsApp por texto ou áudio, mostra o cardápio, anota o pedido e envia o Pix. Você acompanha tudo no painel e pode assumir a conversa quando quiser.' },
 ];
 
 export default function Home() {
