@@ -56,12 +56,12 @@ export default function Home() {
       {/* hero */}
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-8 md:grid-cols-2 md:pt-14">
         <div>
-          <span className="chip bg-brand-sun/40 text-ink">Cardápio digital + pedidos no WhatsApp</span>
+          <span className="chip bg-brand-sun/40 text-ink">Cardápio digital + atendente com IA 24h</span>
           <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
             Seu delivery com <span className="text-brand">link próprio</span>, sem pagar comissão por pedido.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-ink/70">
-            Cardápio online, Pix automático, taxa de entrega por bairro ou km e painel de pedidos com aviso sonoro. Tudo no seu nome, pronto pra divulgar.
+            Cardápio online, Pix automático, taxa de entrega por bairro ou km e painel de pedidos com aviso sonoro. E um <b className="text-ink">atendente com inteligência artificial no WhatsApp, 24 horas por dia, 7 dias por semana</b>.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link href={CTA} className="btn-primary text-lg">Criar minha loja</Link>
@@ -79,13 +79,38 @@ export default function Home() {
 
       {/* faixa de benefícios */}
       <section className="bg-ink text-cream">
-        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-center sm:grid-cols-3">
-          {[['0%', 'de comissão por pedido'], ['Pix', 'confirmado automaticamente'], ['5 min', 'pra colocar a loja no ar']].map(([a, b]) => (
+        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 text-center sm:grid-cols-2 lg:grid-cols-4">
+          {[['0%', 'de comissão por pedido'], ['24/7', 'atendente com IA no WhatsApp'], ['Pix', 'confirmado automaticamente'], ['5 min', 'pra colocar a loja no ar']].map(([a, b]) => (
             <div key={a}>
               <p className="font-display text-4xl font-extrabold text-brand-sun">{a}</p>
               <p className="text-sm text-cream/70">{b}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* atendente IA */}
+      <section className="mx-auto max-w-6xl px-5 py-16">
+        <div className="grid items-center gap-8 rounded-3xl bg-white p-6 shadow-card sm:p-10 lg:grid-cols-2">
+          <div>
+            <span className="chip bg-brand-sun/40 text-ink">Novo</span>
+            <h2 className="mt-3 font-display text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">Atendente com IA no WhatsApp, 24 horas por dia, 7 dias por semana</h2>
+            <p className="mt-4 text-ink/70">Seu cliente chama no WhatsApp de madrugada, no domingo ou no horário de pico, e é atendido na hora. Sem fila, sem demora e sem pedido perdido.</p>
+            <Link href={CTA} className="btn-primary mt-6 inline-flex">Quero o atendente na minha loja</Link>
+          </div>
+          <ul className="grid gap-3 text-sm">
+            {[
+              ['💬', 'Responde por texto e por áudio', 'Entende o que o cliente escreveu ou falou, como um atendente de verdade.'],
+              ['🧾', 'Mostra o cardápio e anota o pedido', 'Calcula a taxa de entrega, confirma o resumo com o cliente e registra no painel.'],
+              ['💠', 'Envia o Pix e acompanha o pagamento', 'O código do Pix chega no próprio WhatsApp e o pedido só entra no painel depois de pago.'],
+              ['🙋', 'Chama você quando precisar', 'Você vê todas as conversas no painel, assume quando quiser e devolve ao robô depois.'],
+            ].map(([i, t, d]) => (
+              <li key={t} className="flex gap-3 rounded-2xl bg-cream p-4">
+                <span className="text-2xl" aria-hidden="true">{i}</span>
+                <span className="min-w-0"><b className="block">{t}</b><span className="break-words text-ink/70">{d}</span></span>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
