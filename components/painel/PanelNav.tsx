@@ -8,7 +8,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 
 type M = { business_id: string; name: string; slug: string };
 
-export default function PanelNav({ list, currentId, slug }: { list: M[]; currentId: string; slug: string }) {
+export default function PanelNav({ list, currentId, slug, isAdmin = false }: { list: M[]; currentId: string; slug: string; isAdmin?: boolean }) {
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -26,6 +26,7 @@ export default function PanelNav({ list, currentId, slug }: { list: M[]; current
   }
 
   const tabs = [
+    ...(isAdmin ? [{ href: '/admin', label: '⚙ Admin' }] : []),
     { href: '/painel', label: 'Pedidos' },
     { href: '/painel/conversas', label: 'Conversas' },
     { href: '/painel/cardapio', label: 'Cardápio' },

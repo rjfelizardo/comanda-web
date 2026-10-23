@@ -38,7 +38,7 @@ export async function middleware(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
 
-  if (!data.user && request.nextUrl.pathname.startsWith('/painel')) {
+  if (!data.user && (request.nextUrl.pathname.startsWith('/painel') || request.nextUrl.pathname.startsWith('/admin'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.search = '';
@@ -48,5 +48,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/painel/:path*', '/login'],
+  matcher: ['/', '/painel/:path*', '/admin/:path*', '/login'],
 };
