@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { storeUrl } from '@/lib/storeUrl';
-import { brl } from '@/lib/format';
 
 type Biz = {
   id: string; slug: string; name: string; segment: string; status: string; created_at: string;
@@ -37,7 +36,6 @@ export default function AdminBoard() {
       total: r.length,
       active: r.filter((x) => x.status === 'active').length,
       orders: r.reduce((a, x) => a + x.orders_30d, 0),
-      revenue: r.reduce((a, x) => a + x.revenue_30d, 0),
     };
   }, [rows]);
 
@@ -80,7 +78,7 @@ export default function AdminBoard() {
           ['Lojas', String(stats.total)],
           ['Ativas', String(stats.active)],
           ['Pedidos (30 dias)', String(stats.orders)],
-          ['Vendido (30 dias)', brl(stats.revenue)],
+          ['Com pedido em 30 dias', String((rows ?? []).filter((x) => x.orders_30d > 0).length)],
         ].map(([k, v]) => (
           <div key={k} className="card p-4">
             <p className="text-xs font-semibold text-ink/60">{k}</p>
@@ -122,11 +120,10 @@ export default function AdminBoard() {
               <p><span className="text-ink/60">Plano:</span> <b>{b.plan ?? 'trial'}</b></p>
               <p><span className="text-ink/60">Produtos:</span> <b>{b.products_count}</b></p>
               <p><span className="text-ink/60">Pedidos 30d:</span> <b>{b.orders_30d}</b></p>
-              <p><span className="text-ink/60">Vendas 30d:</span> <b>{brl(b.revenue_30d)}</b></p>
+              <p><span className="text-ink/60">Pedidos total:</span> <b>{b.orders_total}</b></p>
               <p><span className="text-ink/60">Criada em:</span> <b>{dt(b.created_at)}</b></p>
               <p><span className="text-ink/60">Último pedido:</span> <b>{dt(b.last_order_at)}</b></p>
               <p><span className="text-ink/60">Fim do teste:</span> <b>{dt(b.trial_ends_at)}</b></p>
-              <p><span className="text-ink/60">Pedidos total:</span> <b>{b.orders_total}</b></p>
             </div>
             {b.notes && <p className="mt-2 break-words rounded-lg bg-cream px-3 py-2 text-sm">{b.notes}</p>}
 

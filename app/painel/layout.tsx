@@ -7,8 +7,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Painel' };
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
-  const { list, current, user, supabase } = await getContext();
-  const { data: isAdmin } = await supabase.rpc('is_platform_admin');
+  const { list, current, user } = await getContext();
 
   if (!current) {
     return (
@@ -26,7 +25,7 @@ export default async function PainelLayout({ children }: { children: React.React
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={current.logo_url || '/logo.png'} alt={current.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
           </Link>
-          <PanelNav list={list} currentId={current.business_id} slug={current.slug} isAdmin={isAdmin === true} />
+          <PanelNav list={list} currentId={current.business_id} slug={current.slug} />
         </div>
       </header>
       <div className="mx-auto min-w-0 max-w-5xl px-4 py-5">{children}</div>

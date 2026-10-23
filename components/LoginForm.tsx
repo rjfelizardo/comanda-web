@@ -33,7 +33,7 @@ export default function LoginForm() {
         });
         if (error) throw error;
         if (data.session) {
-          router.replace('/painel');
+          router.replace(window.location.hostname.startsWith('admin.') ? '/admin' : '/painel');
           router.refresh();
         } else {
           setInfo('Enviamos um link de confirmação para o seu e-mail. Abra-o para ativar a conta.');
@@ -41,7 +41,7 @@ export default function LoginForm() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
-        router.replace('/painel');
+        router.replace(window.location.hostname.startsWith('admin.') ? '/admin' : '/painel');
         router.refresh();
       }
     } catch (err: any) {
