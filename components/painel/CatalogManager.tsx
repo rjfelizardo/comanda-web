@@ -115,19 +115,21 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
       <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
         {prods.length === 0 && <div className="card p-10 text-center text-ink/60">Nenhum produto ainda. Clique em “Novo produto” para começar.</div>}
         {prods.map((p) => (
-          <div key={p.id} className={`card flex items-center gap-3 p-3 ${p.is_available ? '' : 'opacity-60'}`}>
+          <div key={p.id} className={`card flex flex-col gap-3 p-3 sm:flex-row sm:items-center ${p.is_available ? '' : 'opacity-60'}`}>
+            <div className="flex min-w-0 flex-1 items-start gap-3">
             {p.photo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.photo_url} alt="" className="h-16 w-16 rounded-xl object-cover" />
+              <img src={p.photo_url} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
             ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-sand text-2xl">🍽️</div>
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-sand text-2xl">🍽️</div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-bold">{p.name}</p>
+              <p className="break-words font-bold leading-snug">{p.name}</p>
               <p className="text-sm text-ink/60">
                 {cats.find((c) => c.id === p.category_id)?.name ?? 'Sem categoria'} · {p.base_price > 0 ? brl(p.base_price) : 'preço nas opções'}
                 {groups.filter((g) => g.product_id === p.id).length > 0 && ` · ${groups.filter((g) => g.product_id === p.id).length} grupo(s) de opções`}
               </p>
+            </div>
             </div>
             {canEdit && (
               <div className="flex shrink-0 gap-2">
