@@ -79,10 +79,10 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold">Cardápio</h1>
         {canEdit && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button className="btn-ghost btn-sm" onClick={() => setImporting(true)}>📥 Importar planilha</button>
             <button className="btn-ghost btn-sm" onClick={() => setPhotoImp(true)}>🖼 Importar fotos</button>
             <button className="btn-primary btn-sm" onClick={() => setEditing('new')}>+ Novo produto</button>

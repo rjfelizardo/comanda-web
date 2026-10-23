@@ -18,7 +18,7 @@ export default async function PainelLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <header className="sticky top-0 z-40 border-b border-sand bg-white/95 backdrop-blur">
         <div className="relative mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <Link href="/painel" className="flex items-center gap-2">
@@ -28,7 +28,7 @@ export default async function PainelLayout({ children }: { children: React.React
           <PanelNav list={list} currentId={current.business_id} slug={current.slug} />
         </div>
       </header>
-      <div className="mx-auto max-w-5xl px-4 py-5">{children}</div>
+      <div className="mx-auto min-w-0 max-w-5xl px-4 py-5">{children}</div>
     </div>
   );
 }
