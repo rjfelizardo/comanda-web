@@ -19,8 +19,8 @@ export default async function PainelLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-sand bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+      <header className="sticky top-0 z-40 border-b border-sand bg-white/95 backdrop-blur">
+        <div className="relative mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <Link href="/painel" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={current.logo_url || '/logo.png'} alt={current.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
