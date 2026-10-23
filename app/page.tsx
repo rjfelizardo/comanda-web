@@ -135,6 +135,7 @@ export default function Home() {
         </div>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a href="https://wa.me/5574999134241?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20Comanda." className="btn-primary" target="_blank" rel="noreferrer">Falar no WhatsApp</a>
+          <a href="/guia-comanda.pdf" download className="btn-ghost">📘 Baixar o passo a passo (PDF)</a>
           <a href="mailto:comandagrupobridge@gmail.com" className="btn-ghost">comandagrupobridge@gmail.com</a>
         </div>
       </section>
