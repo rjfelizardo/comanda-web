@@ -31,7 +31,6 @@ const FAQ = [
 export default function Home() {
   return (
     <main className="overflow-x-hidden">
-      <div className="bg-[#0d0805] text-cream">
       {/* topo */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         <div className="flex items-center gap-2">
@@ -51,24 +50,22 @@ export default function Home() {
           <h1 className="mt-4 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
             Seu delivery com <span className="text-brand">link próprio</span>, sem pagar comissão por pedido.
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-cream/75">
+          <p className="mt-5 max-w-xl text-lg text-ink/70">
             Cardápio online, Pix automático, taxa de entrega por bairro ou km e painel de pedidos com aviso sonoro. Tudo no seu nome, pronto pra divulgar.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link href={CTA} className="btn-primary text-lg">Criar minha loja</Link>
             <a href="#como-funciona" className="btn-ghost text-lg">Ver como funciona</a>
           </div>
-          <p className="mt-3 text-sm text-cream/60">Sem cartão de crédito pra começar.</p>
+          <p className="mt-3 text-sm text-ink/60">Sem cartão de crédito pra começar.</p>
         </div>
 
         {/* imagem principal */}
         <div className="relative mx-auto w-full max-w-xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hero-app.jpg" alt="Loja da Petti Pizzaria no Comanda, em dois celulares" className="block w-full" style={{ WebkitMaskImage: 'radial-gradient(ellipse 72% 72% at 50% 50%, #000 62%, transparent 100%)', maskImage: 'radial-gradient(ellipse 72% 72% at 50% 50%, #000 62%, transparent 100%)' }} width={1400} height={933} fetchPriority="high" />
+          <img src="/hero-app.webp" alt="Loja da Petti Pizzaria no Comanda, em dois celulares" className="block w-full" width={1400} height={933} fetchPriority="high" />
         </div>
       </section>
-
-      </div>
 
       {/* faixa de benefícios */}
       <section className="bg-ink text-cream">
