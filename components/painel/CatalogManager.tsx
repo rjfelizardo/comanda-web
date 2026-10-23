@@ -78,7 +78,7 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
   if (loading) return <p className="py-10 text-center text-ink/50">Carregando…</p>;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold">Cardápio</h1>
         {canEdit && (
@@ -106,13 +106,13 @@ export default function CatalogManager({ businessId, canEdit }: { businessId: st
         </div>
         {canEdit && (
           <form onSubmit={addCat} className="mt-3 flex gap-2">
-            <input className="input" placeholder="Nova categoria" value={newCat} onChange={(e) => setNewCat(e.target.value)} maxLength={80} />
+            <input className="input min-w-0 flex-1" placeholder="Nova categoria" value={newCat} onChange={(e) => setNewCat(e.target.value)} maxLength={80} />
             <button className="btn-ghost shrink-0">Adicionar</button>
           </form>
         )}
       </section>
 
-      <section className="grid gap-3">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
         {prods.length === 0 && <div className="card p-10 text-center text-ink/60">Nenhum produto ainda. Clique em “Novo produto” para começar.</div>}
         {prods.map((p) => (
           <div key={p.id} className={`card flex items-center gap-3 p-3 ${p.is_available ? '' : 'opacity-60'}`}>
