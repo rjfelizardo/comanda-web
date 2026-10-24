@@ -73,7 +73,7 @@ export default function Home() {
         {/* imagem principal */}
         <div className="relative mx-auto w-full max-w-xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hero-app.webp" alt="Loja da Petti Pizzaria no Comanda, em dois celulares" className="block w-full" width={1400} height={933} fetchPriority="high" />
+          <img src="/hero-app-2.webp" alt="Loja da Petti Pizzaria no Comanda, em dois celulares" className="block w-full" width={1100} height={733} fetchPriority="high" />
         </div>
       </section>
 
