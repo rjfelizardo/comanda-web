@@ -10,11 +10,11 @@ const FEATURES = [
   { i: '📸', t: 'Cardápio pronto em minutos', d: 'Importe produtos por planilha e as fotos de uma vez só, pelo nome do arquivo. Sem cadastrar item por item.' },
   { i: '🎟️', t: 'Cupons, horários e agendamento', d: 'Crie cupons de desconto, defina horário de funcionamento e deixe o cliente agendar o pedido.' },
   { i: '🖨️', t: 'Impressão e relatórios', d: 'Imprima o pedido pra cozinha e acompanhe vendas, ticket médio e produtos mais pedidos.' },
-  { i: '🔗', t: 'Seu link, sua marca', d: 'Endereço próprio, tipo suapizzaria.comanda…, pra colocar na bio, no WhatsApp e no QR Code.' },
+  { i: '🔗', t: 'Sua loja, sua marca', d: 'Seu nome, sua logo e um endereço próprio, tipo suapizzaria.comanda…, pra colocar na bio, no WhatsApp e no QR Code.' },
 ];
 
 const STEPS = [
-  { n: '1', t: 'Crie sua loja', d: 'Cadastro rápido, sem cartão. Escolha o nome e o endereço do seu link.' },
+  { n: '1', t: 'Crie sua loja', d: 'Cadastro rápido, sem cartão. Escolha o nome, coloque a sua logo e defina o endereço do seu link.' },
   { n: '2', t: 'Monte o cardápio', d: 'Cadastre ou importe seus produtos, fotos, tamanhos e adicionais.' },
   { n: '3', t: 'Divulgue o link', d: 'Mande no WhatsApp e no Instagram. Os pedidos caem no seu painel.' },
 ];
@@ -61,7 +61,7 @@ export default function Home() {
             Seu delivery com <span className="text-brand">link próprio</span>, sem pagar comissão por pedido.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-ink/70">
-            Cardápio online, Pix automático, taxa de entrega por bairro ou km e painel de pedidos com aviso sonoro. E um <b className="text-ink">atendente com inteligência artificial no WhatsApp, 24 horas por dia, 7 dias por semana</b>.
+            <b className="text-ink">Monte a sua loja em minutos</b>, com o seu nome, a sua logo e o seu próprio link. Cardápio online, Pix automático, taxa de entrega por bairro ou km e painel de pedidos com aviso sonoro. E um <b className="text-ink">atendente com inteligência artificial no WhatsApp, 24 horas por dia, 7 dias por semana</b>.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link href={CTA} className="btn-primary text-lg">Criar minha loja</Link>
