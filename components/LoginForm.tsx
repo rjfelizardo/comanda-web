@@ -76,7 +76,7 @@ export default function LoginForm() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
       <Link href="/" className="flex items-center gap-3 self-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" width={48} height={48} />
+        <img src="/logo-c.png" alt="" width={48} height={48} />
         <span className="font-display text-2xl font-extrabold">Comanda</span>
       </Link>
 

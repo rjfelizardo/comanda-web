@@ -21,7 +21,7 @@ export default function AdminNav({ email }: { email: string }) {
     <aside className="border-b border-sand bg-white md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:border-b-0 md:border-r">
       <div className="flex items-center gap-2 px-4 py-3 md:py-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
+        <img src="/logo-c.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
         <div className="min-w-0">
           <p className="font-extrabold leading-tight">Comanda</p>
           <p className="text-xs text-ink/50">Administração</p>
