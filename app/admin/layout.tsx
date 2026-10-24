@@ -3,7 +3,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import AdminNav from '@/components/admin/AdminNav';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Admin' };
+export const metadata = { title: 'Admin', manifest: '/admin.webmanifest' };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = supabaseServer();
