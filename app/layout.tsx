@@ -2,6 +2,16 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://comanda.bridgeatravessia.com.br'),
+  openGraph: {
+    type: 'website',
+    siteName: 'Comanda',
+    locale: 'pt_BR',
+    title: 'Comanda — pedidos pelo WhatsApp',
+    description: 'Monte sua loja de delivery em minutos e receba pedidos pelo WhatsApp.',
+    images: [{ url: '/og-comanda.jpg', width: 1200, height: 630, alt: 'Comanda' }],
+  },
+  twitter: { card: 'summary_large_image', images: ['/og-comanda.jpg'] },
   title: { default: 'Comanda — pedidos pelo WhatsApp', template: '%s · Comanda' },
   description: 'Receba pedidos de delivery com cardápio online, painel e atendimento no WhatsApp.',
   manifest: '/manifest.webmanifest',
