@@ -44,7 +44,7 @@ export default function Home() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-c.png" alt="" width={36} height={36} />
+          <img src="/logo.png" alt="" width={36} height={36} />
           <span className="font-display text-xl font-extrabold tracking-tight">Comanda</span>
         </div>
         <nav className="flex items-center gap-2">

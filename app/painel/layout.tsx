@@ -30,7 +30,7 @@ export default async function PainelLayout({ children }: { children: React.React
         <div className="relative mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <Link href="/painel" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={current.logo_url || '/logo-c.png'} alt={current.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
+            <img src={current.logo_url || '/logo.png'} alt={current.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
           </Link>
           <PanelNav list={list} currentId={current.business_id} slug={current.slug} />
         </div>
