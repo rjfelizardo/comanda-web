@@ -4,6 +4,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'Comanda — pedidos pelo WhatsApp', template: '%s · Comanda' },
   description: 'Receba pedidos de delivery com cardápio online, painel e atendimento no WhatsApp.',
+  manifest: '/manifest.webmanifest',
   icons: {
     icon: [
       { url: '/favicon-32.png?v=3', sizes: '32x32', type: 'image/png' },
