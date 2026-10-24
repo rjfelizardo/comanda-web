@@ -4,7 +4,15 @@ import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'Comanda — pedidos pelo WhatsApp', template: '%s · Comanda' },
   description: 'Receba pedidos de delivery com cardápio online, painel e atendimento no WhatsApp.',
-  icons: { icon: '/icon-192.png', apple: '/apple-touch-icon.png' },
+  icons: {
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/favicon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export const viewport: Viewport = { themeColor: '#F25C05', width: 'device-width', initialScale: 1 };
