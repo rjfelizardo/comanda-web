@@ -69,7 +69,7 @@ export default function Onboarding({ email }: { email: string }) {
     <form onSubmit={submit} className="grid gap-5">
       <div className="text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" width={72} height={72} className="mx-auto" />
+        <img src="/logo-redondo-c.png" alt="" width={72} height={72} className="mx-auto" />
         <h1 className="mt-3 text-3xl font-extrabold">Vamos abrir sua loja</h1>
         <p className="mt-1 text-sm text-ink/60">Conta: {email}</p>
       </div>

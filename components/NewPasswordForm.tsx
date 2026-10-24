@@ -47,7 +47,7 @@ export default function NewPasswordForm() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
       <div className="flex items-center justify-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" width={48} height={48} />
+        <img src="/logo-redondo-c.png" alt="" width={48} height={48} />
         <span className="font-display text-2xl font-extrabold">Comanda</span>
       </div>
       <h1 className="text-center text-2xl font-extrabold">Crie sua nova senha</h1>
