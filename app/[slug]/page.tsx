@@ -89,7 +89,15 @@ async function load(slug: string) {
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const data = await load(params.slug);
   if (!data) return { title: 'Loja não encontrada' };
-  return { title: data.business.name, description: data.business.description ?? `Faça seu pedido em ${data.business.name}` };
+  const b = data.business;
+  const description = b.description ?? `Faça seu pedido em ${b.name}`;
+  const img = b.logo_url || b.banner_url || '/og-comanda.jpg';
+  return {
+    title: b.name,
+    description,
+    openGraph: { type: 'website', siteName: b.name, locale: 'pt_BR', title: b.name, description, images: [{ url: img, alt: b.name }] },
+    twitter: { card: 'summary', title: b.name, description, images: [img] },
+  };
 }
 
 export default async function StorePage({ params }: { params: { slug: string } }) {
