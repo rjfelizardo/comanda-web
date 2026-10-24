@@ -73,7 +73,14 @@ export default function LoginForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-10">
+    <div className="relative min-h-screen">
+    <div
+      aria-hidden
+      className="fixed inset-0 -z-10 bg-cover bg-[position:50%_60%]"
+      style={{ backgroundImage: "url('/bg-login.webp')", backgroundColor: '#3a2412' }}
+    />
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-5 py-10">
+      <div className="flex flex-col gap-6 rounded-3xl bg-white/85 p-6 shadow-card backdrop-blur-md">
       <Link href="/" className="flex items-center gap-3 self-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-redondo-c.png" alt="" width={48} height={48} />
@@ -114,6 +121,8 @@ export default function LoginForm() {
           <button type="button" onClick={forgot} className="text-sm font-semibold text-brand-dark underline">Esqueci minha senha</button>
         )}
       </form>
+      </div>
     </main>
+    </div>
   );
 }
